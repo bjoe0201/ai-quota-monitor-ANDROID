@@ -89,12 +89,12 @@ fun defaultServices(): Map<String, ServiceConfig> = mapOf(
         displayName = "Claude API",
         sourceKey = "claude_billing",
         url = "https://console.anthropic.com/settings/billing",
-        loginUrl = "https://console.anthropic.com/login",
+        loginUrl = "https://console.anthropic.com",
     ),
     "browser_openrouter" to ServiceConfig(
         displayName = "OpenRouter",
         sourceKey = "openrouter",
         url = "https://openrouter.ai/settings/credits",
-        loginUrl = "https://openrouter.ai/auth/login",
+        loginUrl = "https://openrouter.ai",
     ),
 )

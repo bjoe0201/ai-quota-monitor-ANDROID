@@ -81,6 +81,7 @@ class WebViewDataCollector(private val context: Context) {
         val wv = WebView(context).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            @Suppress("DEPRECATION")
             settings.databaseEnabled = true
             settings.userAgentString = DESKTOP_UA
             addJavascriptInterface(DataBridge(serviceKey), "AndroidBridge")

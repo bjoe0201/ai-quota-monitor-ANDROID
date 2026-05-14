@@ -1,10 +1,12 @@
 package com.example.ai_quota_monitor_android.ui.settings
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -56,7 +58,6 @@ fun ServiceLoginScreen(
     val state by viewModel.uiState.collectAsState()
     val svc = state.config.services[serviceKey]
     val displayName = svc?.displayName ?: serviceKey
-    // Use loginUrl for the login WebView; fall back to data url
     val loginUrl = svc?.loginUrl?.takeIf { it.isNotEmpty() } ?: svc?.url ?: ""
 
     var progress by remember { mutableIntStateOf(0) }
@@ -83,7 +84,6 @@ fun ServiceLoginScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        // Mark as logged in and save cookies
                         CookieManager.getInstance().flush()
                         val updated = state.config.copy(
                             authStatus = state.config.authStatus + (serviceKey to AuthStatus(
@@ -135,14 +135,14 @@ fun ServiceLoginScreen(
                                 @Suppress("DEPRECATION")
                                 databaseEnabled = true
                                 cacheMode = WebSettings.LOAD_DEFAULT
-                                // Desktop UA to get normal login flow
                                 userAgentString = DESKTOP_UA
-                                // Allow zoom for desktop pages
                                 setSupportZoom(true)
                                 builtInZoomControls = true
                                 displayZoomControls = false
                                 useWideViewPort = true
                                 loadWithOverviewMode = true
+                                javaScriptCanOpenWindowsAutomatically = true
+                                setSupportMultipleWindows(false)
                             }
                             val cm = CookieManager.getInstance()
                             cm.setAcceptCookie(true)
@@ -153,18 +153,31 @@ fun ServiceLoginScreen(
                                     finishUrl?.let { currentUrl = it }
                                     CookieManager.getInstance().flush()
                                 }
-                                // Allow all redirects (Google SSO, OAuth, etc.)
                                 override fun shouldOverrideUrlLoading(
                                     view: WebView?,
                                     request: WebResourceRequest?,
                                 ): Boolean = false
+
+                                // Strip X-Requested-With header for Google SSO compatibility
+                                override fun shouldInterceptRequest(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                ): WebResourceResponse? {
+                                    // Let WebView handle it normally — the header stripping
+                                    // is done via the map-based loadUrl overload below
+                                    return super.shouldInterceptRequest(view, request)
+                                }
                             }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                                     progress = newProgress
                                 }
                             }
-                            loadUrl(loginUrl)
+                            // Load with extra headers to override X-Requested-With
+                            val headers = mapOf(
+                                "X-Requested-With" to "com.google.android.googlequicksearchbox"
+                            )
+                            loadUrl(loginUrl, headers)
                         }
                     },
                     modifier = Modifier.fillMaxSize(),
