@@ -1,0 +1,65 @@
+# Built application files
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Compiled files
+*.class
+*.iml
+
+# Generated files
+bin/
+gen/
+out/
+
+# Gradle
+.gradle/
+build/
+/build
+**/build/
+
+# Local configuration (contains SDK path)
+local.properties
+
+# IntelliJ IDEA / Android Studio
+.idea/workspace.xml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/runConfigurations.xml
+.idea/.name
+.idea/markdown.xml
+
+# Signing keys — NEVER commit these
+*.jks
+*.keystore
+signing.properties
+keystore.properties
+
+# Google Services (Firebase, etc.)
+google-services.json
+
+# Android profiling / debug
+/captures
+.externalNativeBuild
+.cxx
+*.hprof
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Log files
+*.log
+
+# Temp files
+*.tmp
+*.temp
+*.swp
+*~
