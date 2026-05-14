@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">ai-quota-monitor-ANDROID</string>
+    <string name="app_name">AI Quota Monitor</string>
+    <string name="notification_channel_name">監控服務</string>
+    <string name="notification_channel_desc">HTTP 伺服器與資料收集背景服務</string>
+    <string name="notification_title">AI Quota Monitor 運行中</string>
+    <string name="notification_text">HTTP 伺服器正在監聽 port 7890</string>
 </resources>

@@ -1,47 +1,70 @@
 package com.example.ai_quota_monitor_android
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.ai_quota_monitor_android.ui.theme.AiquotamonitorANDROIDTheme
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.example.ai_quota_monitor_android.service.MonitorForegroundService
+import com.example.ai_quota_monitor_android.ui.dashboard.DashboardScreen
+import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
+import com.example.ai_quota_monitor_android.ui.settings.ServiceLoginScreen
+import com.example.ai_quota_monitor_android.ui.settings.SettingsScreen
+import com.example.ai_quota_monitor_android.ui.theme.AiQuotaMonitorTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: DashboardViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        startMonitorService()
+
         setContent {
-            AiquotamonitorANDROIDTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+            AiQuotaMonitorTheme {
+                // Simple stack-based navigation
+                var screen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+
+                when (val s = screen) {
+                    Screen.Dashboard -> DashboardScreen(
+                        viewModel = viewModel,
+                        onSettingsClick = { screen = Screen.Settings },
+                    )
+                    Screen.Settings -> SettingsScreen(
+                        viewModel = viewModel,
+                        onBack = { screen = Screen.Dashboard },
+                        onLoginService = { key -> screen = Screen.Login(key) },
+                    )
+                    is Screen.Login -> ServiceLoginScreen(
+                        serviceKey = s.serviceKey,
+                        viewModel = viewModel,
+                        onBack = { screen = Screen.Settings },
                     )
                 }
             }
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AiquotamonitorANDROIDTheme {
-        Greeting("Android")
+    private fun startMonitorService() {
+        val intent = Intent(this, MonitorForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        viewModel.setServerRunning(true)
     }
+}
+
+private sealed class Screen {
+    data object Dashboard : Screen()
+    data object Settings : Screen()
+    data class Login(val serviceKey: String) : Screen()
 }
