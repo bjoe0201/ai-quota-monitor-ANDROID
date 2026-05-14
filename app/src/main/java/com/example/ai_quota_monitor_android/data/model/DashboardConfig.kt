@@ -34,6 +34,7 @@ data class ServiceConfig(
     val displayName: String = "",
     val sourceKey: String = "",
     val url: String = "",
+    val loginUrl: String = "",
 )
 
 @Serializable
@@ -70,25 +71,30 @@ fun defaultServices(): Map<String, ServiceConfig> = mapOf(
         displayName = "Claude.ai",
         sourceKey = "claude_usage",
         url = "https://claude.ai/settings/usage",
+        loginUrl = "https://claude.ai/login",
     ),
     "browser_github_copilot" to ServiceConfig(
         displayName = "GitHub Copilot",
         sourceKey = "github_copilot",
-        url = "https://github.com/settings/billing/premium_requests_usage",
+        url = "https://github.com/settings/copilot",
+        loginUrl = "https://github.com/login",
     ),
     "browser_openai" to ServiceConfig(
         displayName = "OpenAI",
         sourceKey = "openai_billing",
         url = "https://platform.openai.com/settings/organization/billing/overview",
+        loginUrl = "https://platform.openai.com/login",
     ),
     "browser_claude_billing" to ServiceConfig(
         displayName = "Claude API",
         sourceKey = "claude_billing",
-        url = "https://platform.claude.com/settings/billing",
+        url = "https://console.anthropic.com/settings/billing",
+        loginUrl = "https://console.anthropic.com/login",
     ),
     "browser_openrouter" to ServiceConfig(
         displayName = "OpenRouter",
         sourceKey = "openrouter",
         url = "https://openrouter.ai/settings/credits",
+        loginUrl = "https://openrouter.ai/auth/login",
     ),
 )

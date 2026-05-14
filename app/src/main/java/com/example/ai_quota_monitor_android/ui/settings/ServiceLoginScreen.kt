@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -23,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -32,13 +32,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.ai_quota_monitor_android.data.model.AuthStatus
 import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
 import com.example.ai_quota_monitor_android.ui.theme.AppColors
 import java.time.Instant
+
+/** Desktop Chrome UA — avoids mobile redirects and SSO issues in WebView. */
+private const val DESKTOP_UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+    "AppleWebKit/537.36 (KHTML, like Gecko) " +
+    "Chrome/125.0.6422.176 Safari/537.36"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
@@ -51,10 +56,11 @@ fun ServiceLoginScreen(
     val state by viewModel.uiState.collectAsState()
     val svc = state.config.services[serviceKey]
     val displayName = svc?.displayName ?: serviceKey
-    val url = svc?.url ?: ""
+    // Use loginUrl for the login WebView; fall back to data url
+    val loginUrl = svc?.loginUrl?.takeIf { it.isNotEmpty() } ?: svc?.url ?: ""
 
     var progress by remember { mutableIntStateOf(0) }
-    var currentUrl by remember { mutableStateOf(url) }
+    var currentUrl by remember { mutableStateOf(loginUrl) }
 
     Scaffold(
         topBar = {
@@ -63,7 +69,7 @@ fun ServiceLoginScreen(
                     Column {
                         Text(displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Text(
-                            text = currentUrl.take(60),
+                            text = currentUrl.take(80),
                             color = AppColors.TextDim,
                             fontSize = 8.sp,
                             maxLines = 1,
@@ -86,7 +92,6 @@ fun ServiceLoginScreen(
                             ))
                         )
                         viewModel.updateConfig(updated)
-                        // Trigger background WebView to start collecting data
                         viewModel.onServiceLoggedIn(serviceKey)
                         onBack()
                     }) {
@@ -116,7 +121,7 @@ fun ServiceLoginScreen(
                 )
             }
 
-            if (url.isNotEmpty()) {
+            if (loginUrl.isNotEmpty()) {
                 AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
@@ -127,9 +132,17 @@ fun ServiceLoginScreen(
                             settings.apply {
                                 javaScriptEnabled = true
                                 domStorageEnabled = true
+                                @Suppress("DEPRECATION")
                                 databaseEnabled = true
                                 cacheMode = WebSettings.LOAD_DEFAULT
-                                userAgentString = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+                                // Desktop UA to get normal login flow
+                                userAgentString = DESKTOP_UA
+                                // Allow zoom for desktop pages
+                                setSupportZoom(true)
+                                builtInZoomControls = true
+                                displayZoomControls = false
+                                useWideViewPort = true
+                                loadWithOverviewMode = true
                             }
                             val cm = CookieManager.getInstance()
                             cm.setAcceptCookie(true)
@@ -140,13 +153,18 @@ fun ServiceLoginScreen(
                                     finishUrl?.let { currentUrl = it }
                                     CookieManager.getInstance().flush()
                                 }
+                                // Allow all redirects (Google SSO, OAuth, etc.)
+                                override fun shouldOverrideUrlLoading(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                ): Boolean = false
                             }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                                     progress = newProgress
                                 }
                             }
-                            loadUrl(url)
+                            loadUrl(loginUrl)
                         }
                     },
                     modifier = Modifier.fillMaxSize(),

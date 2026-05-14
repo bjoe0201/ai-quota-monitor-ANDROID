@@ -11,11 +11,12 @@
     'use strict';
 
     const PAGE_MAP = {
-        'platform.openai.com': { key: 'openai_billing', label: 'OpenAI' },
-        'claude.ai':           { key: 'claude_usage',   label: 'Claude Usage' },
-        'platform.claude.com': { key: 'claude_billing', label: 'Claude Billing' },
-        'github.com':          { key: 'github_copilot', label: 'Copilot' },
-        'openrouter.ai':       { key: 'openrouter',     label: 'OpenRouter' },
+        'platform.openai.com':    { key: 'openai_billing', label: 'OpenAI' },
+        'claude.ai':              { key: 'claude_usage',   label: 'Claude Usage' },
+        'platform.claude.com':    { key: 'claude_billing', label: 'Claude Billing' },
+        'console.anthropic.com':  { key: 'claude_billing', label: 'Claude Billing' },
+        'github.com':             { key: 'github_copilot', label: 'Copilot' },
+        'openrouter.ai':          { key: 'openrouter',     label: 'OpenRouter' },
     };
 
     const PAGE = PAGE_MAP[location.hostname];

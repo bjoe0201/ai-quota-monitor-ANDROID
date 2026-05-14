@@ -49,7 +49,7 @@ class WebViewDataCollector(private val context: Context) {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
-            settings.userAgentString = CHROME_MOBILE_UA
+            settings.userAgentString = DESKTOP_UA
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
@@ -82,7 +82,7 @@ class WebViewDataCollector(private val context: Context) {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
-            settings.userAgentString = CHROME_MOBILE_UA
+            settings.userAgentString = DESKTOP_UA
             addJavascriptInterface(DataBridge(serviceKey), "AndroidBridge")
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
@@ -113,12 +113,14 @@ class WebViewDataCollector(private val context: Context) {
     }
 
     private fun isLoginPage(serviceKey: String, currentUrl: String): Boolean {
+        val url = currentUrl.lowercase()
         return when {
-            serviceKey.contains("claude") && currentUrl.contains("/login") -> true
-            serviceKey.contains("github") &&
-                (currentUrl.contains("/login") || currentUrl.contains("/sessions")) -> true
-            serviceKey.contains("openai") && currentUrl.contains("/auth/login") -> true
-            serviceKey.contains("openrouter") && currentUrl.contains("/auth") -> true
+            url.contains("accounts.google.com") -> true
+            url.contains("/login") -> true
+            url.contains("/signin") -> true
+            url.contains("/sessions") -> true
+            url.contains("/auth") -> true
+            url.contains("/sso") -> true
             else -> false
         }
     }
@@ -127,7 +129,7 @@ class WebViewDataCollector(private val context: Context) {
         "browser_claude_usage" -> "claude.ai"
         "browser_github_copilot" -> "github.com"
         "browser_openai" -> "platform.openai.com"
-        "browser_claude_billing" -> "platform.claude.com"
+        "browser_claude_billing" -> "console.anthropic.com"
         "browser_openrouter" -> "openrouter.ai"
         else -> ""
     }
@@ -155,8 +157,10 @@ class WebViewDataCollector(private val context: Context) {
     }
 
     companion object {
-        const val CHROME_MOBILE_UA =
-            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+        /** Desktop Chrome UA — matches login WebView; avoids mobile redirects. */
+        const val DESKTOP_UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/125.0.6422.176 Safari/537.36"
     }
 }
