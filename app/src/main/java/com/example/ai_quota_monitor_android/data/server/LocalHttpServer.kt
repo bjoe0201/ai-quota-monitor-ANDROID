@@ -8,7 +8,7 @@ import org.json.JSONObject
  * Local HTTP server that receives data from Tampermonkey JS on PC browser.
  * Mirrors Python local_server.py endpoints: /update, /status, /poll, /health.
  */
-class LocalHttpServer(port: Int = 7890) : NanoHTTPD("127.0.0.1", port) {
+class LocalHttpServer(port: Int = 7890) : NanoHTTPD("0.0.0.0", port) {
 
     override fun serve(session: IHTTPSession): Response {
         // CORS headers for all responses
