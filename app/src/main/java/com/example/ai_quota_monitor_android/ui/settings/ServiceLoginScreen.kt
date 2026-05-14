@@ -187,11 +187,8 @@ fun ServiceLoginScreen(
                                     super.onPageFinished(view, finishUrl)
                                     finishUrl?.let {
                                         currentUrl = it
-                                        // Detect Google SSO block
-                                        if (it.contains("accounts.google.com/gsi/") ||
-                                            it.contains("accounts.google.com/o/oauth2/") ||
-                                            it.contains("accounts.google.com/signin/oauth")
-                                        ) {
+                                        // Detect actual Google SSO block (only /gsi/ is the dead end)
+                                        if (it.contains("accounts.google.com/gsi/")) {
                                             googleSsoBlocked = true
                                         }
                                     }

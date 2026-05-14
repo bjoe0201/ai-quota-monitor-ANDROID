@@ -76,8 +76,8 @@ All AI service pages require user login. Users authenticate once via full-screen
 | Claude.ai | `claude_usage` | claude.ai/settings/usage |
 | GitHub Copilot | `github_copilot` | github.com/settings/billing |
 | OpenAI | `openai_billing` | platform.openai.com/billing |
-| Claude API | `claude_billing` | platform.claude.com/billing |
-| OpenRouter | `openrouter` | openrouter.ai/settings/credits |
+| Claude API | `claude_billing` | platform.claude.com/settings/billing |
+| OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
 
 ### Card System (Home Assistant style)
 
@@ -86,6 +86,7 @@ Dashboard is divided into configurable **Sections**, each containing **Cards**. 
 - `sections[].cards[].span` — how many columns a card occupies
 - `services.<key>.display_name` — customizable card titles
 - `services.<key>.enabled` — show/hide individual services
+- `collapsedCards` — persisted set of collapsed card keys
 
 ### Key Versions
 

@@ -15,10 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,9 +75,10 @@ fun ServiceCard(
     serviceKey: String,
     displayName: String,
     result: ServiceResult?,
+    collapsed: Boolean = false,
+    onToggleCollapse: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var collapsed by remember { mutableStateOf(false) }
     val accent = ServiceAccents.get(serviceKey)
     val headerBg = headerTint(accent)
 
@@ -99,7 +97,7 @@ fun ServiceCard(
             collapsed = collapsed,
             statusColor = statusDotColor(result),
             timestamp = result?.data?.get("updated_at")?.toString() ?: "",
-            onToggle = { collapsed = !collapsed },
+            onToggle = onToggleCollapse,
         )
 
         // -- Content (collapsible) ------------------------------------------------

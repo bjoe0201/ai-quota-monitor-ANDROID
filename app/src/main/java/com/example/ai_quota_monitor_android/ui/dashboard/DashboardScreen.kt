@@ -92,6 +92,8 @@ fun DashboardScreen(
                     section = section,
                     results = state.results,
                     services = state.config.services,
+                    collapsedCards = state.config.collapsedCards,
+                    onToggleCollapse = { cardKey -> viewModel.toggleCardCollapse(cardKey) },
                 )
             }
         }
@@ -103,6 +105,8 @@ private fun SectionBlock(
     section: SectionConfig,
     results: Map<String, ServiceResult>,
     services: Map<String, com.example.ai_quota_monitor_android.data.model.ServiceConfig>,
+    collapsedCards: Set<String> = emptySet(),
+    onToggleCollapse: (String) -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Section title
@@ -120,7 +124,7 @@ private fun SectionBlock(
             // Single column: render cards vertically
             section.cards.forEachIndexed { i, card ->
                 if (i > 0) Spacer(modifier = Modifier.height(8.dp))
-                CardSlot(card = card, results = results, services = services)
+                CardSlot(card = card, results = results, services = services, collapsedCards = collapsedCards, onToggleCollapse = onToggleCollapse)
             }
         } else {
             // Multi-column grid
@@ -134,7 +138,7 @@ private fun SectionBlock(
                     for (card in row) {
                         val weight = card.span.toFloat() / section.columns
                         Box(modifier = Modifier.weight(weight)) {
-                            CardSlot(card = card, results = results, services = services)
+                            CardSlot(card = card, results = results, services = services, collapsedCards = collapsedCards, onToggleCollapse = onToggleCollapse)
                         }
                     }
                 }
@@ -148,6 +152,8 @@ private fun CardSlot(
     card: CardConfig,
     results: Map<String, ServiceResult>,
     services: Map<String, com.example.ai_quota_monitor_android.data.model.ServiceConfig>,
+    collapsedCards: Set<String> = emptySet(),
+    onToggleCollapse: (String) -> Unit = {},
 ) {
     when (card.type) {
         "clock" -> ClockCard()
@@ -158,6 +164,8 @@ private fun CardSlot(
                 serviceKey = key,
                 displayName = svc.displayName,
                 result = results[key],
+                collapsed = key in collapsedCards,
+                onToggleCollapse = { onToggleCollapse(key) },
             )
         }
     }

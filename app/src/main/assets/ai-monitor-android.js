@@ -14,7 +14,6 @@
         'platform.openai.com':    { key: 'openai_billing', label: 'OpenAI' },
         'claude.ai':              { key: 'claude_usage',   label: 'Claude Usage' },
         'platform.claude.com':    { key: 'claude_billing', label: 'Claude Billing' },
-        'console.anthropic.com':  { key: 'claude_billing', label: 'Claude Billing' },
         'github.com':             { key: 'github_copilot', label: 'Copilot' },
         'openrouter.ai':          { key: 'openrouter',     label: 'OpenRouter' },
     };
@@ -230,42 +229,57 @@
     // ── OpenRouter DOM parsing ───────────────────────
 
     if (PAGE.key === 'openrouter') {
-        function parseOpenRouterDOM() {
+        function parseOpenRouterCredits() {
             var fields = {};
-            var path = location.pathname;
-            if (path.indexOf('/settings/credits') === 0) {
-                var bigEls = document.querySelectorAll('p.text-4xl, span.text-4xl, p.text-3xl, span.text-3xl');
-                for (var i = 0; i < bigEls.length; i++) {
-                    var text = (bigEls[i].textContent || '').trim().replace(/[$,\s]/g, '');
-                    var val = parseFloat(text);
+            // Primary: aria-label on the card div (animated counter stores value here)
+            // e.g. aria-label="Remaining credits: 39.486"
+            var cards = document.querySelectorAll('[aria-label*="credit" i], [aria-label*="balance" i]');
+            for (var i = 0; i < cards.length; i++) {
+                var label = cards[i].getAttribute('aria-label') || '';
+                var m = label.match(/([\d,]+\.?\d*)/);
+                if (m) {
+                    var val = parseFloat(m[1].replace(/,/g, ''));
                     if (isFinite(val) && val >= 0 && val < 100000) {
                         fields.balance_usd = val;
                         break;
                     }
                 }
-                if (fields.balance_usd === undefined) {
-                    fields.parse_error = 'Unable to parse OpenRouter balance';
+            }
+            return fields;
+        }
+
+        function parseOpenRouterActivity() {
+            var fields = {};
+            // Try broad selectors for activity stats
+            var containers = document.querySelectorAll('[class*="text-sm"], span.text-sm, p.text-sm, label');
+            for (var j = 0; j < containers.length; j++) {
+                var label = (containers[j].textContent || '').trim();
+                var parent = containers[j].parentElement;
+                if (!parent) continue;
+                var valueCandidates = parent.querySelectorAll('[class*="text-2xl"], [class*="text-3xl"], [class*="text-xl"]');
+                if (valueCandidates.length === 0) continue;
+                var valueText = (valueCandidates[0].textContent || '').trim();
+                if (/^Spend$/i.test(label)) {
+                    var m = valueText.match(/([\d.]+)/);
+                    if (m) fields.month_spend_usd = parseFloat(m[1]);
+                } else if (/^Requests?$/i.test(label)) {
+                    var n = parseFloat(valueText.replace(/[,K]/g, ''));
+                    if (isFinite(n)) fields.month_requests = Math.round(n);
+                } else if (/^Tokens?$/i.test(label)) {
+                    var t = parseFloat(valueText.replace(/[,K]/g, ''));
+                    if (isFinite(t)) fields.month_tokens = Math.round(t);
                 }
+            }
+            return fields;
+        }
+
+        function parseOpenRouterDOM() {
+            var path = location.pathname;
+            var fields = {};
+            if (path.indexOf('/settings/credits') === 0) {
+                fields = parseOpenRouterCredits();
             } else if (path.indexOf('/activity') === 0) {
-                var titleNodes = document.querySelectorAll('span.text-sm');
-                for (var j = 0; j < titleNodes.length; j++) {
-                    var label = (titleNodes[j].textContent || '').trim();
-                    var container = titleNodes[j].parentElement;
-                    if (!container) continue;
-                    var valueSpan = container.querySelector('span.text-2xl');
-                    if (!valueSpan) continue;
-                    var valueText = (valueSpan.textContent || '').trim();
-                    if (/^Spend$/i.test(label)) {
-                        var m = valueText.match(/([\d.]+)/);
-                        if (m) fields.month_spend_usd = parseFloat(m[1]);
-                    } else if (/^Requests?$/i.test(label)) {
-                        var n = parseFloat(valueText.replace(/[,K]/g, ''));
-                        if (isFinite(n)) fields.month_requests = Math.round(n);
-                    } else if (/^Tokens?$/i.test(label)) {
-                        var t = parseFloat(valueText.replace(/[,K]/g, ''));
-                        if (isFinite(t)) fields.month_tokens = Math.round(t);
-                    }
-                }
+                fields = parseOpenRouterActivity();
             }
             if (Object.keys(fields).length > 0) {
                 merge('openrouter', fields);
@@ -274,16 +288,31 @@
             return false;
         }
 
-        // Try immediately, then with observer
+        // Try immediately, then with observer, then give up
+        var creditsPage = location.pathname.indexOf('/settings/credits') === 0;
         setTimeout(function () {
             if (!parseOpenRouterDOM()) {
                 var obs = new MutationObserver(function () {
-                    if (parseOpenRouterDOM()) { obs.disconnect(); }
+                    if (parseOpenRouterDOM()) {
+                        obs.disconnect();
+                        if (creditsPage) setTimeout(function () { window.location.href = '/activity'; }, 3000);
+                    }
                 });
                 obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
-                setTimeout(function () { obs.disconnect(); }, 30000);
+                // After 15s give up and navigate anyway
+                setTimeout(function () {
+                    obs.disconnect();
+                    parseOpenRouterDOM(); // last attempt
+                    if (creditsPage) {
+                        merge('openrouter', { parse_error: 'Unable to parse OpenRouter balance' });
+                        window.location.href = '/activity';
+                    }
+                }, 15000);
+            } else {
+                // Parsed successfully, navigate to activity after delay
+                if (creditsPage) setTimeout(function () { window.location.href = '/activity'; }, 3000);
             }
-        }, 1500);
+        }, 2000);
     }
 
     // ── GitHub Copilot DOM fallback ──────────────────

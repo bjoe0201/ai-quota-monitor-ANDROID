@@ -10,6 +10,7 @@ data class DashboardConfig(
     val sections: List<SectionConfig> = defaultSections(),
     val services: Map<String, ServiceConfig> = defaultServices(),
     val authStatus: Map<String, AuthStatus> = emptyMap(),
+    val collapsedCards: Set<String> = emptySet(),
 )
 
 @Serializable
@@ -60,8 +61,8 @@ fun defaultSections(): List<SectionConfig> = listOf(
             CardConfig(type = "service", id = "c1", serviceKey = "browser_claude_usage", span = 1),
             CardConfig(type = "service", id = "c2", serviceKey = "browser_github_copilot", span = 1),
             CardConfig(type = "service", id = "c3", serviceKey = "browser_openai", span = 1),
-            CardConfig(type = "service", id = "c4", serviceKey = "browser_claude_billing", span = 1),
-            CardConfig(type = "service", id = "c5", serviceKey = "browser_openrouter", span = 2),
+            CardConfig(type = "service", id = "c4", serviceKey = "browser_openrouter", span = 1),
+            CardConfig(type = "service", id = "c5", serviceKey = "browser_claude_billing", span = 2),
         ),
     ),
 )
@@ -88,8 +89,8 @@ fun defaultServices(): Map<String, ServiceConfig> = mapOf(
     "browser_claude_billing" to ServiceConfig(
         displayName = "Claude API",
         sourceKey = "claude_billing",
-        url = "https://console.anthropic.com/settings/billing",
-        loginUrl = "https://console.anthropic.com",
+        url = "https://platform.claude.com/settings/billing",
+        loginUrl = "https://platform.claude.com/login",
     ),
     "browser_openrouter" to ServiceConfig(
         displayName = "OpenRouter",

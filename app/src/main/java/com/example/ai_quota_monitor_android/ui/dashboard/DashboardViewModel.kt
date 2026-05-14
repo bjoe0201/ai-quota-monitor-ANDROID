@@ -119,6 +119,15 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = _ui.value.copy(serverRunning = running)
     }
 
+    fun toggleCardCollapse(cardKey: String) {
+        val current = _ui.value.config
+        val newSet = if (cardKey in current.collapsedCards)
+            current.collapsedCards - cardKey
+        else
+            current.collapsedCards + cardKey
+        updateConfig(current.copy(collapsedCards = newSet))
+    }
+
     fun updateConfig(config: DashboardConfig) {
         viewModelScope.launch {
             configRepo.save(config)

@@ -130,7 +130,7 @@ class WebViewDataCollector(private val context: Context) {
         "browser_claude_usage" -> "claude.ai"
         "browser_github_copilot" -> "github.com"
         "browser_openai" -> "platform.openai.com"
-        "browser_claude_billing" -> "console.anthropic.com"
+        "browser_claude_billing" -> "platform.claude.com"
         "browser_openrouter" -> "openrouter.ai"
         else -> ""
     }
