@@ -86,6 +86,8 @@ fun ServiceLoginScreen(
                             ))
                         )
                         viewModel.updateConfig(updated)
+                        // Trigger background WebView to start collecting data
+                        viewModel.onServiceLoggedIn(serviceKey)
                         onBack()
                     }) {
                         Icon(Icons.Default.Check, contentDescription = "完成登入", tint = AppColors.Success)
