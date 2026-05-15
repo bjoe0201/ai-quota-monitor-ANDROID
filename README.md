@@ -1,54 +1,117 @@
 <p align="center">
-  <img src="docs/app-icon.svg" width="128" height="128" alt="AI Quota Monitor icon">
+  <img src="docs/app-icon.svg" width="108" height="108" alt="AI Quota Monitor icon">
 </p>
 
-# AI Quota Monitor — Android
+<h1 align="center">AI Quota Monitor — Android</h1>
 
-Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) — a desktop widget that monitors AI service quotas. The original is Python + tkinter; this project rebuilds it as a native Android app with Kotlin + Jetpack Compose + Material3.
+<p align="center">
+  一鍵掌握所有 AI 服務餘額，隨時掌握用量不超支<br>
+  Monitor your AI service quotas at a glance — Claude, OpenAI, GitHub Copilot & OpenRouter
+</p>
 
-## Features
+<p align="center">
+  <img src="https://img.shields.io/badge/Android-12%2B-3DDC84?logo=android&logoColor=white" alt="Android 12+">
+  <img src="https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-2026.02.01-4285F4?logo=jetpackcompose&logoColor=white" alt="Compose">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License">
+</p>
 
-- **5 AI 服務即時監控** — Claude.ai、GitHub Copilot、OpenAI、Claude API、OpenRouter
-- **Home Assistant 風格卡片** — 可配置的多欄 section/card 佈局，支援展開/收合（狀態持久化）
-- **雙資料來源**
-  - WebView + JS 注入：App 內登入後自動載入服務頁面，攔截 API 回應
-  - HTTP Server (port 7890)：接收 PC 瀏覽器 Tampermonkey 腳本推送的資料
-- **翻頁時鐘卡片** — 移植自桌面版的 FlipClock 風格
-- **Dark Theme** — Linear/Raycast 風格深色主題
-- **Cookie 持久化** — 登入一次，重啟 App 不需要再登入
-- **Google SSO 偵測** — 自動偵測 Google SSO 限制並提示替代方案
+---
 
-## Screenshots
+## 📱 Screenshots
 
-| Dashboard | Settings |
-|-----------|----------|
-| (TODO) | (TODO) |
+<table>
+  <tr>
+    <td><img src="PICS/Screenshot_20260515_143459.png" width="180"/></td>
+    <td><img src="PICS/Screenshot_20260515_143601.png" width="180"/></td>
+    <td><img src="PICS/Screenshot_20260515_143613.png" width="180"/></td>
+    <td><img src="PICS/Screenshot_20260515_143621.png" width="180"/></td>
+  </tr>
+  <tr>
+    <td align="center">儀表板總覽</td>
+    <td align="center">服務用量卡片</td>
+    <td align="center">進度條 / KV 列</td>
+    <td align="center">卡片展開∕收合</td>
+  </tr>
+  <tr>
+    <td><img src="PICS/Screenshot_20260515_143643.png" width="180"/></td>
+    <td><img src="PICS/Screenshot_20260515_143701.png" width="180"/></td>
+    <td><img src="PICS/Screenshot_20260515_143718.png" width="180"/></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center">設定頁</td>
+    <td align="center">服務登入 (WebView)</td>
+    <td align="center">翻頁時鐘卡片</td>
+    <td></td>
+  </tr>
+</table>
 
-## Architecture
+---
+
+## ✨ Features
+
+| 功能 | 說明 |
+|------|------|
+| 🔍 **5 大 AI 服務監控** | Claude.ai、GitHub Copilot、OpenAI、Claude API、OpenRouter |
+| 🃏 **卡片式儀表板** | Home Assistant 風格，支援多欄佈局，可展開 / 收合，狀態持久化 |
+| 🌐 **雙資料來源** | ① App 內 WebView + JS 注入（背景自動刷新）② PC 端 Tampermonkey 腳本推送 (port 7890) |
+| 🕐 **翻頁時鐘** | 仿機械翻頁風格的即時時鐘卡片 |
+| 🌑 **深色主題** | Linear / Raycast 風格深色配色，每個服務有專屬強調色 |
+| 🍪 **Cookie 持久化** | 登入一次即可，重啟 App 免重新登入 |
+| 🔔 **登入偵測** | 偵測 session 過期或 Google SSO 限制，即時提示重新登入 |
+
+---
+
+## 🚀 Quick Start
+
+### 1. 安裝 APK
+
+從 [Releases](../../releases) 下載最新 `app-release.apk`，安裝至 Android 12+ 手機。
+
+### 2. 登入 AI 服務
+
+進入 **設定 → 服務帳號**，依序對需要監控的服務點選「登入」，在內建 WebView 完成帳號登入後返回即可。
+
+### 3. 查看儀表板
+
+返回主畫面，系統會自動在背景載入各服務頁面並更新用量資訊。
+
+### （選用）PC 端 Tampermonkey 推送
+
+若偏好從電腦瀏覽器取得資料，可在電腦安裝 [Tampermonkey](https://www.tampermonkey.net/) 並載入腳本（同原始 [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) 專案），將資料推送至手機 IP:7890。
+
+---
+
+## 🏗️ Architecture
 
 ```
-資料來源                          資料儲存                    UI
-┌──────────────────┐
-│ WebView + JS注入  │──┐
-│ (背景載入服務頁面)   │  │     ┌──────────────────┐    ┌──────────────┐
-└──────────────────┘  ├────▶│ DataStoreRepository │───▶│ DashboardScreen │
-┌──────────────────┐  │     │   (記憶體 StateFlow)  │    │  ServiceCard  │
-│ HTTP Server :7890 │──┘     └──────────────────┘    │  ClockCard    │
-│ (Tampermonkey)    │                                 └──────────────┘
-└──────────────────┘
+資料來源                            記憶體儲存                   UI 層
+┌─────────────────────┐
+│  WebView + JS 注入   │──┐
+│  （背景自動刷新）      │  │    ┌──────────────────────┐   ┌─────────────────┐
+└─────────────────────┘  ├──▶ │  DataStoreRepository  │──▶│  DashboardScreen │
+┌─────────────────────┐  │    │  （StateFlow / 記憶體）  │   │  ServiceCard     │
+│  HTTP Server :7890   │──┘    └──────────────────────┘   │  ClockCard       │
+│  （Tampermonkey）    │                                    └─────────────────┘
+└─────────────────────┘
 ```
 
-## Monitored Services
+---
 
-| Service | Source Key | Login URL | Data URL |
-|---------|-----------|-----------|----------|
-| Claude.ai | `claude_usage` | claude.ai/login | claude.ai/settings/usage |
-| GitHub Copilot | `github_copilot` | github.com/login | github.com/settings/copilot |
-| OpenAI | `openai_billing` | platform.openai.com/login | platform.openai.com/settings/.../billing |
-| Claude API | `claude_billing` | platform.claude.com/login | platform.claude.com/settings/billing |
-| OpenRouter | `openrouter` | openrouter.ai | openrouter.ai/settings/credits + /activity |
+## 📋 Monitored Services
 
-## Build
+| Service | Source Key | 資料來源頁面 |
+|---------|-----------|------------|
+| Claude.ai | `claude_usage` | claude.ai/settings/usage |
+| GitHub Copilot | `github_copilot` | github.com/settings/billing |
+| OpenAI | `openai_billing` | platform.openai.com/billing |
+| Claude API | `claude_billing` | platform.claude.com/settings/billing |
+| OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
+
+---
+
+## 🔨 Build from Source
 
 ```bash
 # Debug APK
@@ -57,21 +120,37 @@ Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor)
 # Release APK
 ./gradlew assembleRelease
 
-# Tests
+# Unit tests (JVM, no device needed)
 ./gradlew test
 ```
 
-Windows: use `gradlew.bat` instead of `./gradlew`.
+> Windows：請使用 `gradlew.bat` 取代 `./gradlew`
 
-## Requirements
+### Requirements
 
-- Android 12+ (minSdk 31)
-- 手機與電腦在同一 Wi-Fi（若使用 Tampermonkey 推送）
+- Android Studio Meerkat (2024.3) 或更新版本
+- JDK 17+
+- Android 12+ 裝置或模擬器 (minSdk 31)
 
-## Tech Stack
+---
 
-- Kotlin + Jetpack Compose + Material3
-- NanoHTTPD (embedded HTTP server)
-- kotlinx.serialization (config persistence)
-- AndroidX Navigation Compose
-- AGP 9.1.1 | Kotlin 2.2.10 | Compose BOM 2026.02.01
+## 🛠️ Tech Stack
+
+- **Kotlin 2.2.10** + **Jetpack Compose** (BOM 2026.02.01) + **Material3**
+- **NanoHTTPD** — 嵌入式 HTTP Server
+- **kotlinx.serialization** — 設定檔 JSON 序列化
+- **AndroidX Navigation Compose** — 頁面導航
+- AGP 9.1.1 | targetSdk 36 | minSdk 31
+
+---
+
+## 🤝 Credits
+
+Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) by [@bjoe0201](https://github.com/bjoe0201).  
+Original desktop app: Python + tkinter.
+
+---
+
+## 📄 License
+
+[MIT](LICENSE)

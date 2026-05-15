@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3 (2026-05-15)
+
+### Features
+- Add Dark / Light theme toggle (淺色模式) in Settings
+- New app icon: multi-color gauge meter with monochrome adaptive-icon layer
+
+### UI
+- README revamp with full screenshot gallery (7 screenshots)
+- Add PICS directory with annotated screenshots for documentation
+
+### Bug Fixes
+- versionCode / versionName now properly synced with release tag
+
+---
+
 ## v1.2 (2026-05-15)
 
 ### Redesign
