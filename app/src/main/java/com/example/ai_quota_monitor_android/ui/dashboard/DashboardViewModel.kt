@@ -12,6 +12,7 @@ import com.example.ai_quota_monitor_android.data.repository.DataStoreRepository
 import com.example.ai_quota_monitor_android.service.ALL_BROWSER_SERVICES
 import com.example.ai_quota_monitor_android.service.WebViewDataCollector
 import com.example.ai_quota_monitor_android.data.model.effectiveServiceOrder
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var collector: WebViewDataCollector? = null
+    private var pollingJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -109,7 +111,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
      * Does NOT delay before the first cycle so data is loaded as soon as possible.
      */
     private fun startPolling() {
-        viewModelScope.launch {
+        pollingJob?.cancel()
+        pollingJob = viewModelScope.launch {
             while (true) {
                 val intervalMs = _ui.value.config.autoRefreshMinutes.coerceAtLeast(1) * 60_000L
                 delay(intervalMs)
@@ -178,6 +181,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** Set the WebView auto-refresh interval (clamped to 1–10 minutes). */
     fun setAutoRefreshMinutes(minutes: Int) {
         updateConfig(_ui.value.config.copy(autoRefreshMinutes = minutes.coerceIn(1, 10)))
+        // Restart the polling loop so the new interval takes effect immediately,
+        // and trigger a service reload right away.
+        refreshAll()
+        startPolling()
     }
 
     /**
