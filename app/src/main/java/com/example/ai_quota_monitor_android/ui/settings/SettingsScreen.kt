@@ -1,16 +1,22 @@
 package com.example.ai_quota_monitor_android.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -34,7 +40,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.example.ai_quota_monitor_android.data.model.DashboardConfig
+import com.example.ai_quota_monitor_android.data.model.DashboardLayout
 import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
 import com.example.ai_quota_monitor_android.ui.theme.AppColors
 import com.example.ai_quota_monitor_android.ui.theme.ServiceAccents
@@ -74,6 +82,29 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
+            // -- Dashboard layout picker --
+            SectionTitle("Dashboard 佈局")
+            SettingsCard {
+                val layouts = listOf(
+                    Triple(DashboardLayout.A, "時鐘+服務並排", "時鐘縮小靠左，兩張卡並排"),
+                    Triple(DashboardLayout.B, "左側 Sidebar", "橫式側欄，直式上方 Banner"),
+                    Triple(DashboardLayout.C, "頂部橫條時鐘", "時鐘塞進頂欄，最大化卡片空間"),
+                    Triple(DashboardLayout.D, "Bento Mosaic", "不對稱馬賽克，最有儀表板感"),
+                )
+                layouts.forEachIndexed { i, (id, label, desc) ->
+                    if (i > 0) HorizontalDivider(color = AppColors.Border)
+                    LayoutPickerRow(
+                        id = id,
+                        label = label,
+                        desc = desc,
+                        selected = config.dashboardLayout == id,
+                        onSelect = { viewModel.updateConfig(config.copy(dashboardLayout = id)) },
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // -- Server settings --
             SectionTitle("HTTP 伺服器")
             SettingsCard {
@@ -132,7 +163,7 @@ fun SettingsScreen(
             // -- About --
             SectionTitle("關於")
             SettingsCard {
-                KvSettingsRow("版本", "1.0.0")
+                KvSettingsRow("版本", "1.2")
                 HorizontalDivider(color = AppColors.Border)
                 KvSettingsRow("資料來源", "WebView + HTTP Server")
             }
@@ -207,5 +238,113 @@ private fun KvSettingsRow(label: String, value: String) {
     ) {
         Text(text = label, color = AppColors.TextDim, fontSize = 11.sp)
         Text(text = value, color = AppColors.Text, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun LayoutPickerRow(
+    id: DashboardLayout,
+    label: String,
+    desc: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .background(if (selected) AppColors.CardBgHover else Color.Transparent)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        LayoutMiniPreview(id)
+        Column(Modifier.weight(1f)) {
+            Text(text = label, color = AppColors.Text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = desc, color = AppColors.TextDim, fontSize = 9.sp)
+        }
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(if (selected) AppColors.Accent else Color.Transparent)
+                .border(1.5.dp, if (selected) AppColors.Accent else AppColors.TextDim, CircleShape),
+        )
+    }
+}
+
+@Composable
+private fun LayoutMiniPreview(variant: DashboardLayout) {
+    val clockColor = AppColors.Accent.copy(alpha = 0.65f)
+    val cardColor = AppColors.BorderStrong
+
+    Box(
+        modifier = Modifier
+            .width(42.dp)
+            .height(28.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(AppColors.Bg),
+    ) {
+        when (variant) {
+            DashboardLayout.A -> Column(
+                Modifier.fillMaxSize().padding(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(Modifier.weight(0.8f).fillMaxHeight().background(clockColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                }
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                }
+            }
+            DashboardLayout.B -> Row(
+                Modifier.fillMaxSize().padding(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Box(Modifier.width(9.dp).fillMaxHeight().background(clockColor).clip(RoundedCornerShape(2.dp)))
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                        Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    }
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                        Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    }
+                }
+            }
+            DashboardLayout.C -> Column(
+                Modifier.fillMaxSize().padding(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Box(Modifier.fillMaxWidth().height(5.dp).background(clockColor).clip(RoundedCornerShape(2.dp)))
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                }
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                }
+            }
+            DashboardLayout.D -> Column(
+                Modifier.fillMaxSize().padding(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Row(Modifier.weight(1.2f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(Modifier.weight(0.7f).fillMaxHeight().background(clockColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1.4f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                }
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                    Box(Modifier.weight(1f).fillMaxHeight().background(cardColor).clip(RoundedCornerShape(2.dp)))
+                }
+            }
+        }
     }
 }

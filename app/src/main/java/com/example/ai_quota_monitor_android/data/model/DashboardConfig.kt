@@ -3,6 +3,9 @@ package com.example.ai_quota_monitor_android.data.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class DashboardLayout { A, B, C, D }
+
+@Serializable
 data class DashboardConfig(
     val autoRefreshMinutes: Int = 30,
     val serverPort: Int = 7890,
@@ -11,6 +14,7 @@ data class DashboardConfig(
     val services: Map<String, ServiceConfig> = defaultServices(),
     val authStatus: Map<String, AuthStatus> = emptyMap(),
     val collapsedCards: Set<String> = emptySet(),
+    val dashboardLayout: DashboardLayout = DashboardLayout.A,
 )
 
 @Serializable
