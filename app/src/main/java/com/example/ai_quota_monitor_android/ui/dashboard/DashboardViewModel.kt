@@ -10,7 +10,6 @@ import com.example.ai_quota_monitor_android.data.model.ServiceResult
 import com.example.ai_quota_monitor_android.data.repository.ConfigRepository
 import com.example.ai_quota_monitor_android.data.repository.DataStoreRepository
 import com.example.ai_quota_monitor_android.service.ALL_BROWSER_SERVICES
-import com.example.ai_quota_monitor_android.service.BROWSER_SERVICE_SOURCES
 import com.example.ai_quota_monitor_android.service.WebViewDataCollector
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,18 +45,23 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Observe DataStoreRepository for real-time updates from WebView JS or HTTP server.
-     * Whenever data changes, rebuild ServiceResults for all services.
+     * Observe DataStoreRepository via SharedFlow for real-time updates.
+     * SharedFlow has no equality-check conflation — every putData() call triggers a rebuild.
+     * Errors inside rebuildResults() are caught so the coroutine never dies silently.
      */
     private fun observeDataStore() {
         viewModelScope.launch {
-            DataStoreRepository.store.collect { storeData ->
-                rebuildResults(storeData)
+            DataStoreRepository.dataUpdateFlow.collect { _ ->
+                try {
+                    rebuildResults()
+                } catch (e: Exception) {
+                    // Never let an exception kill the observer coroutine
+                }
             }
         }
     }
 
-    private fun rebuildResults(storeData: Map<String, Map<String, Any?>> = DataStoreRepository.getAllData()) {
+    private fun rebuildResults() {
         val newResults = mutableMapOf<String, ServiceResult>()
         for ((key, svc) in ALL_BROWSER_SERVICES) {
             val result = svc.fetch()
@@ -99,10 +103,15 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Polling loop: refresh WebViews periodically.
+     * Does NOT delay before the first cycle so data is loaded as soon as possible.
+     */
     private fun startPolling() {
         viewModelScope.launch {
             while (true) {
-                delay(_ui.value.config.autoRefreshMinutes * 60_000L)
+                val intervalMs = _ui.value.config.autoRefreshMinutes.coerceAtLeast(1) * 60_000L
+                delay(intervalMs)
                 refreshAll()
             }
         }
@@ -112,6 +121,14 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         // Reload WebViews for logged-in services (triggers fresh JS injection)
         loadLoggedInServices(_ui.value.config)
         // Also rebuild from current store data (in case HTTP server got data)
+        rebuildResults()
+    }
+
+    /**
+     * Lightweight refresh: rebuild UI from current DataStore without reloading WebViews.
+     * Call this from Activity.onResume() to ensure stale UI is never shown.
+     */
+    fun refreshFromStore() {
         rebuildResults()
     }
 

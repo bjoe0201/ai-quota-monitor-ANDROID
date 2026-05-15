@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4 (2026-05-15)
+
+### Bug Fixes — Auto-Update Pipeline
+- **Fix auto-update not working** — replace `StateFlow.collect` in `observeDataStore()` with
+  `SharedFlow` (`dataUpdateFlow`) that fires on every `putData()` call.  
+  `SharedFlow` has no equality-check conflation, so every incoming data payload — whether from
+  WebView JS bridge or HTTP server (Tampermonkey) — immediately rebuilds the UI without requiring
+  a manual refresh.
+- **Fix JS injection timing** — inject the monitoring script in both `onPageStarted` (early,
+  so hooks are set before the SPA's own JS fetches data) AND `onPageFinished` (safety net).
+  Previously injecting only at `onPageFinished` could miss API calls that happened concurrently.
+- **Fix `startPolling()` initial delay** — polling loop no longer delays before the first cycle;
+  it waits `autoRefreshMinutes` AFTER a refresh, ensuring the interval is purely between reloads.
+- **Add `onResume` refresh** — `MainActivity.onResume()` calls `viewModel.refreshFromStore()`
+  to rebuild UI from current DataStore whenever the app returns to foreground.
+- **Guard observer coroutine** — wrap `rebuildResults()` in try/catch inside the observer so an
+  unexpected exception never silently kills the background observer coroutine.
+
+---
+
 ## v1.3 (2026-05-15)
 
 ### Features

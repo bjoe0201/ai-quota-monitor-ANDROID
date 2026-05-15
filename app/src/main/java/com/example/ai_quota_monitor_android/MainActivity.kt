@@ -54,6 +54,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Rebuild UI from current DataStore whenever the Activity comes to foreground.
+     * This ensures stale data is never shown after returning from background.
+     */
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshFromStore()
+    }
+
     private fun startMonitorService() {
         val intent = Intent(this, MonitorForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

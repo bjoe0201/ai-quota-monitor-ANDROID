@@ -69,6 +69,10 @@ class WebViewDataCollector(private val context: Context) {
     /**
      * Load a service page in background WebView using saved cookies.
      * Injects JS to intercept API data.
+     *
+     * Injection strategy:
+     *  - onPageStarted : inject early so fetch/XHR hooks are in place before SPA JS runs
+     *  - onPageFinished: re-inject as a safety net (page may have replaced window.fetch)
      */
     @SuppressLint("SetJavaScriptEnabled")
     fun loadService(serviceKey: String, url: String) {
@@ -86,11 +90,22 @@ class WebViewDataCollector(private val context: Context) {
             settings.userAgentString = DESKTOP_UA
             addJavascriptInterface(DataBridge(serviceKey), "AndroidBridge")
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, loadedUrl: String, favicon: android.graphics.Bitmap?) {
+                    // Inject early so hooks are set before page's own JS fetches data
+                    if (!isLoginPage(serviceKey, loadedUrl)) {
+                        val script = getJsScript()
+                        if (script.isNotEmpty()) {
+                            view.evaluateJavascript(script, null)
+                        }
+                    }
+                }
+
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
                     if (isLoginPage(serviceKey, loadedUrl)) {
                         onSessionExpired?.invoke(serviceKey)
                         return
                     }
+                    // Re-inject on finish as safety net (some SPAs replace fetch after first inject)
                     val script = getJsScript()
                     if (script.isNotEmpty()) {
                         view.evaluateJavascript(script, null)
