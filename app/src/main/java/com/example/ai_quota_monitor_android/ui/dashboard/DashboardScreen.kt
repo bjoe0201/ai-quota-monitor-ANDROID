@@ -37,21 +37,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ai_quota_monitor_android.data.model.DashboardLayout
+import com.example.ai_quota_monitor_android.data.model.enabledServiceKeys
 import com.example.ai_quota_monitor_android.ui.cards.ClockCardCompact
 import com.example.ai_quota_monitor_android.ui.cards.ClockCardSidebar
 import com.example.ai_quota_monitor_android.ui.cards.ClockCardStrip
 import com.example.ai_quota_monitor_android.ui.cards.ServiceCard
 import com.example.ai_quota_monitor_android.ui.components.StatusBar
 import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
-
-/** Ordered service keys used by all layout variants. */
-private val SERVICE_KEYS = listOf(
-    "browser_claude_usage",
-    "browser_github_copilot",
-    "browser_openai",
-    "browser_claude_billing",
-    "browser_openrouter",
-)
 
 @Composable
 fun DashboardScreen(
@@ -66,6 +58,30 @@ fun DashboardScreen(
         DashboardLayout.B -> LayoutB(state, isLandscape, viewModel, onSettingsClick)
         DashboardLayout.C -> LayoutC(state, isLandscape, viewModel, onSettingsClick)
         DashboardLayout.D -> LayoutD(state, isLandscape, viewModel, onSettingsClick)
+    }
+}
+
+// ── Shared 2-column service grid ─────────────────────────────────────────────
+// Renders enabled services in user-defined order, 2 per row.
+
+@Composable
+private fun ServiceCardGrid(
+    state: DashboardUiState,
+    viewModel: DashboardViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val keys = state.config.enabledServiceKeys()
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        keys.chunked(2).forEach { pair ->
+            if (pair.size == 2) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SvcCard(pair[0], state, viewModel, Modifier.weight(1f))
+                    SvcCard(pair[1], state, viewModel, Modifier.weight(1f))
+                }
+            } else {
+                SvcCard(pair[0], state, viewModel)
+            }
+        }
     }
 }
 
@@ -88,6 +104,7 @@ private fun LayoutA(
         containerColor = colors.Bg,
     ) { padding ->
         if (isLandscape) {
+            val keys = state.config.enabledServiceKeys()
             Column(
                 Modifier.fillMaxSize().padding(padding)
                     .verticalScroll(rememberScrollState())
@@ -96,13 +113,13 @@ private fun LayoutA(
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ClockCardCompact(Modifier.weight(0.85f))
-                    SvcCard("browser_claude_usage", state, viewModel, Modifier.weight(1.3f))
-                    SvcCard("browser_github_copilot", state, viewModel, Modifier.weight(1.3f))
+                    keys.getOrNull(0)?.let { SvcCard(it, state, viewModel, Modifier.weight(1.3f)) }
+                    keys.getOrNull(1)?.let { SvcCard(it, state, viewModel, Modifier.weight(1.3f)) }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SvcCard("browser_openai", state, viewModel, Modifier.weight(1f))
-                    SvcCard("browser_claude_billing", state, viewModel, Modifier.weight(1f))
-                    SvcCard("browser_openrouter", state, viewModel, Modifier.weight(1f))
+                if (keys.size > 2) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        keys.drop(2).forEach { k -> SvcCard(k, state, viewModel, Modifier.weight(1f)) }
+                    }
                 }
             }
         } else {
@@ -113,15 +130,7 @@ private fun LayoutA(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ClockCardCompact()
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SvcCard("browser_claude_usage", state, viewModel, Modifier.weight(1f))
-                    SvcCard("browser_github_copilot", state, viewModel, Modifier.weight(1f))
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SvcCard("browser_openai", state, viewModel, Modifier.weight(1f))
-                    SvcCard("browser_claude_billing", state, viewModel, Modifier.weight(1f))
-                }
-                SvcCard("browser_openrouter", state, viewModel)
+                ServiceCardGrid(state, viewModel)
             }
         }
     }
@@ -181,10 +190,7 @@ private fun LayoutB(
                     )
                     Spacer(Modifier.height(6.dp))
                     Row {
-                        IconButton(
-                            onClick = { viewModel.refreshAll() },
-                            modifier = Modifier.size(32.dp),
-                        ) {
+                        IconButton(onClick = { viewModel.refreshAll() }, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 Icons.Default.Refresh,
                                 contentDescription = "重新整理",
@@ -192,10 +198,7 @@ private fun LayoutB(
                                 modifier = Modifier.size(16.dp),
                             )
                         }
-                        IconButton(
-                            onClick = onSettingsClick,
-                            modifier = Modifier.size(32.dp),
-                        ) {
+                        IconButton(onClick = onSettingsClick, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 Icons.Default.Settings,
                                 contentDescription = "設定",
@@ -213,15 +216,7 @@ private fun LayoutB(
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SvcCard("browser_claude_usage", state, viewModel, Modifier.weight(1f))
-                        SvcCard("browser_github_copilot", state, viewModel, Modifier.weight(1f))
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SvcCard("browser_openai", state, viewModel, Modifier.weight(1f))
-                        SvcCard("browser_claude_billing", state, viewModel, Modifier.weight(1f))
-                    }
-                    SvcCard("browser_openrouter", state, viewModel)
+                    ServiceCardGrid(state, viewModel)
                 }
             }
         } else {
@@ -266,7 +261,7 @@ private fun LayoutB(
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SERVICE_KEYS.forEach { key -> SvcCard(key, state, viewModel) }
+                    ServiceCardGrid(state, viewModel)
                 }
                 BottomStatusBar(state)
             }
@@ -342,15 +337,7 @@ private fun LayoutC(
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SvcCard("browser_claude_usage", state, viewModel, Modifier.weight(1f))
-                    SvcCard("browser_github_copilot", state, viewModel, Modifier.weight(1f))
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SvcCard("browser_openai", state, viewModel, Modifier.weight(1f))
-                    SvcCard("browser_claude_billing", state, viewModel, Modifier.weight(1f))
-                }
-                SvcCard("browser_openrouter", state, viewModel)
+                ServiceCardGrid(state, viewModel)
             }
             BottomStatusBar(state)
         }
@@ -375,37 +362,21 @@ private fun LayoutD(
         bottomBar = { BottomStatusBar(state) },
         containerColor = colors.Bg,
     ) { padding ->
+        val keys = state.config.enabledServiceKeys()
         if (isLandscape) {
             Row(
-                modifier = Modifier.fillMaxSize().padding(padding)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Left column: clock + OA
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ClockCardSidebar(Modifier.fillMaxWidth())
-                    SvcCard("browser_openai", state, viewModel)
+                    keys.getOrNull(0)?.let { SvcCard(it, state, viewModel) }
                 }
-                // Right area: Claude wide top + (GH | API+OR stacked)
-                Column(
-                    modifier = Modifier.weight(2f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SvcCard("browser_claude_usage", state, viewModel)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SvcCard("browser_github_copilot", state, viewModel, Modifier.weight(1f))
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            SvcCard("browser_claude_billing", state, viewModel)
-                            SvcCard("browser_openrouter", state, viewModel)
+                Column(modifier = Modifier.weight(2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    keys.getOrNull(1)?.let { SvcCard(it, state, viewModel) }
+                    if (keys.size > 2) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            keys.drop(2).forEach { k -> SvcCard(k, state, viewModel, Modifier.weight(1f)) }
                         }
                     }
                 }
@@ -419,12 +390,9 @@ private fun LayoutD(
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ClockCardCompact(Modifier.weight(0.7f))
-                    SvcCard("browser_claude_usage", state, viewModel, Modifier.weight(1f))
+                    keys.getOrNull(0)?.let { SvcCard(it, state, viewModel, Modifier.weight(1f)) }
                 }
-                SvcCard("browser_github_copilot", state, viewModel)
-                SvcCard("browser_openai", state, viewModel)
-                SvcCard("browser_claude_billing", state, viewModel)
-                SvcCard("browser_openrouter", state, viewModel)
+                keys.drop(1).forEach { k -> SvcCard(k, state, viewModel) }
             }
         }
     }
@@ -471,6 +439,7 @@ private fun SvcCard(
     modifier: Modifier = Modifier,
 ) {
     val svc = state.config.services[key] ?: return
+    if (!svc.enabled) return
     ServiceCard(
         serviceKey = key,
         displayName = svc.displayName,

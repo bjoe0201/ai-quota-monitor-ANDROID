@@ -10,7 +10,7 @@ enum class ThemeMode { Dark, Light }
 
 @Serializable
 data class DashboardConfig(
-    val autoRefreshMinutes: Int = 30,
+    val autoRefreshMinutes: Int = 5,
     val serverPort: Int = 7890,
     val serverEnabled: Boolean = true,
     val sections: List<SectionConfig> = defaultSections(),
@@ -19,6 +19,8 @@ data class DashboardConfig(
     val collapsedCards: Set<String> = emptySet(),
     val dashboardLayout: DashboardLayout = DashboardLayout.A,
     val themeMode: ThemeMode = ThemeMode.Dark,
+    /** Explicit display order for service keys. Empty = use defaultServices() insertion order. */
+    val serviceOrder: List<String> = emptyList(),
 )
 
 @Serializable
@@ -107,3 +109,19 @@ fun defaultServices(): Map<String, ServiceConfig> = mapOf(
         loginUrl = "https://openrouter.ai",
     ),
 )
+
+/**
+ * Returns service keys in the user's preferred order.
+ * Falls back to the map's insertion order if serviceOrder is empty.
+ * Filters out any stale keys that no longer exist in services.
+ */
+fun DashboardConfig.effectiveServiceOrder(): List<String> {
+    val base = if (serviceOrder.isEmpty()) services.keys.toList() else serviceOrder
+    return base.filter { it in services }
+}
+
+/**
+ * Returns only enabled service keys in the user's preferred order.
+ */
+fun DashboardConfig.enabledServiceKeys(): List<String> =
+    effectiveServiceOrder().filter { services[it]?.enabled != false }

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "Bash(./gradlew assembleDebug:*)",
+      "Read(//d/TEMP/AI Quota Monitor _ Android/**)",
+      "Read(//d/TEMP/**)"
+    ]
+  }
+}

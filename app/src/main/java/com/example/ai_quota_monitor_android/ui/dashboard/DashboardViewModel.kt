@@ -11,6 +11,7 @@ import com.example.ai_quota_monitor_android.data.repository.ConfigRepository
 import com.example.ai_quota_monitor_android.data.repository.DataStoreRepository
 import com.example.ai_quota_monitor_android.service.ALL_BROWSER_SERVICES
 import com.example.ai_quota_monitor_android.service.WebViewDataCollector
+import com.example.ai_quota_monitor_android.data.model.effectiveServiceOrder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -150,6 +151,33 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             configRepo.save(config)
             _ui.value = _ui.value.copy(config = config)
         }
+    }
+
+    /** Move a service card up (−1) or down (+1) in the display order. */
+    fun reorderService(key: String, direction: Int) {
+        val config = _ui.value.config
+        val order = config.effectiveServiceOrder().toMutableList()
+        val idx = order.indexOf(key)
+        if (idx < 0) return
+        val newIdx = (idx + direction).coerceIn(0, order.size - 1)
+        if (newIdx == idx) return
+        order.removeAt(idx)
+        order.add(newIdx, key)
+        updateConfig(config.copy(serviceOrder = order))
+    }
+
+    /** Enable or disable a service card (display + background fetch). */
+    fun setServiceEnabled(key: String, enabled: Boolean) {
+        val config = _ui.value.config
+        val svc = config.services[key] ?: return
+        val newServices = config.services.toMutableMap()
+        newServices[key] = svc.copy(enabled = enabled)
+        updateConfig(config.copy(services = newServices))
+    }
+
+    /** Set the WebView auto-refresh interval (clamped to 1–10 minutes). */
+    fun setAutoRefreshMinutes(minutes: Int) {
+        updateConfig(_ui.value.config.copy(autoRefreshMinutes = minutes.coerceIn(1, 10)))
     }
 
     /**

@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ai_quota_monitor_android.data.model.DashboardLayout
 import com.example.ai_quota_monitor_android.data.model.ThemeMode
+import com.example.ai_quota_monitor_android.data.model.effectiveServiceOrder
 import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
 import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import com.example.ai_quota_monitor_android.ui.theme.ServiceAccents
@@ -83,7 +86,7 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
-            // -- Theme --
+            // ── Theme ──────────────────────────────────────────────────────
             SectionTitle("主題")
             SettingsCard {
                 ToggleRow(
@@ -98,7 +101,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -- Dashboard layout picker --
+            // ── Dashboard layout picker ────────────────────────────────────
             SectionTitle("Dashboard 佈局")
             SettingsCard {
                 val layouts = listOf(
@@ -121,7 +124,81 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -- Server settings --
+            // ── Auto-refresh interval ──────────────────────────────────────
+            SectionTitle("自動更新設定")
+            SettingsCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "WebView 更新間隔", color = colors.Text, fontSize = 12.sp)
+                        Text(text = "每隔幾分鐘自動重新載入服務頁面", color = colors.TextDim, fontSize = 9.sp)
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        // Minus button
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (config.autoRefreshMinutes > 1) colors.CardBgHover
+                                    else colors.Border,
+                                )
+                                .clickable(enabled = config.autoRefreshMinutes > 1) {
+                                    viewModel.setAutoRefreshMinutes(config.autoRefreshMinutes - 1)
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "−",
+                                color = if (config.autoRefreshMinutes > 1) colors.Text else colors.TextDim,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Text(
+                            text = "${config.autoRefreshMinutes} 分",
+                            color = colors.Accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(42.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                        // Plus button
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (config.autoRefreshMinutes < 10) colors.CardBgHover
+                                    else colors.Border,
+                                )
+                                .clickable(enabled = config.autoRefreshMinutes < 10) {
+                                    viewModel.setAutoRefreshMinutes(config.autoRefreshMinutes + 1)
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "+",
+                                color = if (config.autoRefreshMinutes < 10) colors.Text else colors.TextDim,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── HTTP server ────────────────────────────────────────────────
             SectionTitle("HTTP 伺服器")
             SettingsCard {
                 ToggleRow(
@@ -136,25 +213,76 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -- Service accounts --
+            // ── Service accounts ───────────────────────────────────────────
             SectionTitle("服務帳號")
+            // hint text
+            Text(
+                text = "▲▼ 調整顯示順序  •  開關控制是否在儀表板顯示  •  點右側「登入」進行帳號驗證",
+                color = colors.TextDim,
+                fontSize = 8.sp,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
             SettingsCard {
-                config.services.entries.forEachIndexed { i, (key, svc) ->
-                    if (i > 0) HorizontalDivider(color = colors.Border)
-                    val authStatus = config.authStatus[key]
-                    val isLoggedIn = authStatus?.loggedIn == true
+                val orderedKeys = config.effectiveServiceOrder()
+                orderedKeys.forEachIndexed { index, key ->
+                    val svc = config.services[key] ?: return@forEachIndexed
+                    val isLoggedIn = config.authStatus[key]?.loggedIn == true
+                    val isFirst = index == 0
+                    val isLast = index == orderedKeys.lastIndex
+
+                    if (index > 0) HorizontalDivider(color = colors.Border)
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onLoginService(key) }
-                            .padding(vertical = 12.dp, horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .padding(vertical = 8.dp, horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Column {
+                        // ── Up / Down arrows ──────────────────────────────
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.reorderService(key, -1) },
+                                modifier = Modifier.size(22.dp),
+                                enabled = !isFirst,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowUp,
+                                    contentDescription = "上移",
+                                    tint = if (!isFirst) colors.TextMuted else colors.Border,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.reorderService(key, 1) },
+                                modifier = Modifier.size(22.dp),
+                                enabled = !isLast,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "下移",
+                                    tint = if (!isLast) colors.TextMuted else colors.Border,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+
+                        // ── Accent dot ─────────────────────────────────────
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(ServiceAccents.get(key)),
+                        )
+
+                        // ── Name + login status ───────────────────────────
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = svc.displayName,
-                                color = colors.Text,
+                                color = if (svc.enabled) colors.Text else colors.TextDim,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -164,11 +292,30 @@ fun SettingsScreen(
                                 fontSize = 9.sp,
                             )
                         }
+
+                        // ── Enable / disable toggle ────────────────────────
+                        Switch(
+                            checked = svc.enabled,
+                            onCheckedChange = { viewModel.setServiceEnabled(key, it) },
+                            modifier = Modifier.height(24.dp),
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = colors.Success,
+                                uncheckedTrackColor = colors.Border,
+                            ),
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // ── Login button ──────────────────────────────────
                         Text(
                             text = "登入 \u276F",
                             color = ServiceAccents.get(key),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { onLoginService(key) }
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -176,10 +323,10 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -- About --
+            // ── About ──────────────────────────────────────────────────────
             SectionTitle("關於")
             SettingsCard {
-                KvSettingsRow("版本", "1.3")
+                KvSettingsRow("版本", "1.5")
                 HorizontalDivider(color = colors.Border)
                 KvSettingsRow("資料來源", "WebView + HTTP Server")
             }
@@ -188,6 +335,8 @@ fun SettingsScreen(
         }
     }
 }
+
+// ── Shared composables ──────────────────────────────────────────────────────
 
 @Composable
 private fun SectionTitle(text: String) {

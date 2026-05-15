@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.5 (2026-05-15)
+
+### Features — 服務帳號設定頁新功能
+
+- **開關顯示服務** — 每個服務帳號列加入 Switch，可關閉/開啟儀表板上對應的服務卡片。
+  關閉的服務不會顯示在儀表板上（背景 WebView 也停止重載）。
+- **調整顯示順序** — 每個服務帳號列加入 ▲/▼ 按鈕，可調整卡片在儀表板上的顯示次序。
+  順序儲存於 `config.json`，重啟 App 後保留。
+- **WebView 更新間隔設定** — 設定頁新增「自動更新設定」區塊，可透過 −/+ 按鈕調整
+  WebView 自動重新整理間隔（1 ～ 10 分鐘），預設 5 分鐘。
+- 提示文字說明三項功能的操作方式
+
+### Architecture
+- `DashboardConfig` 新增 `serviceOrder: List<String>` 欄位，用於儲存使用者自訂的服務顯示順序。
+- 新增 `effectiveServiceOrder()` / `enabledServiceKeys()` 擴充函式，供 Dashboard 動態渲染卡片。
+- `DashboardScreen` 改用動態順序渲染（`ServiceCardGrid`），所有 Layout (A/B/C/D) 均支援自訂順序與開關。
+- `DashboardViewModel` 新增 `reorderService()` / `setServiceEnabled()` / `setAutoRefreshMinutes()` 方法。
+
+---
+
 ## v1.4 (2026-05-15)
 
 ### Bug Fixes — Auto-Update Pipeline
