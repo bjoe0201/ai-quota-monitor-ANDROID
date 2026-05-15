@@ -8,6 +8,119 @@ Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor)
 
 Full migration plan: `PLANS/migration-plan.md`
 
+## Fixed APK Release Process (Use This Every Time)
+
+Public GitHub releases must use the **signed release APK** produced by `assembleRelease`.
+
+This project supports release signing through a private, ignored `keystore.properties` file or `AI_QUOTA_RELEASE_*` environment variables. Do not publish debug APKs, unsigned APKs, or APKs signed with the Android Debug certificate.
+
+- Use `app/build/outputs/apk/release/app-release.apk` for GitHub Releases.
+- Do not upload `app-debug.apk` for public releases.
+- Do not upload `app-release-unsigned.apk`.
+- GitHub Release assets should be named `ai-quota-monitor-vX.Y-release.apk`.
+- Never commit or upload keystore files, `keystore.properties`, passwords, or unsigned APKs.
+
+### Release signing setup
+
+Create a private release keystore outside Git (or inside `release/` which is git-ignored), then copy `keystore.properties.example` to `keystore.properties` and fill in the real values. Both `keystore.properties` and `*.jks` are ignored by Git.
+
+Required `keystore.properties` keys:
+
+```properties
+storeFile=release/ai-quota-monitor-upload-key.jks
+storePassword=your-store-password
+keyAlias=ai-quota-monitor
+keyPassword=your-key-password
+```
+
+Equivalent environment variables are also supported:
+
+```powershell
+$env:AI_QUOTA_RELEASE_STORE_FILE     = 'release/ai-quota-monitor-upload-key.jks'
+$env:AI_QUOTA_RELEASE_STORE_PASSWORD = 'your-store-password'
+$env:AI_QUOTA_RELEASE_KEY_ALIAS      = 'ai-quota-monitor'
+$env:AI_QUOTA_RELEASE_KEY_PASSWORD   = 'your-key-password'
+```
+
+If signing inputs are missing, `assembleRelease` intentionally fails so an unsigned APK is not accidentally published.
+
+### 0) Pre-release checks
+
+```powershell
+git branch --show-current
+git remote -v
+gh auth status
+gh release list --limit 100
+```
+
+Before publishing, confirm:
+- Current branch is `main`.
+- Remote is `https://github.com/bjoe0201/ai-quota-monitor-ANDROID.git`.
+- GitHub CLI is logged in to the correct account.
+- Release tag uses format `vX.Y`.
+- `app/build.gradle.kts` `versionCode` is incremented and `versionName` matches the tag without the `v` prefix.
+
+### 1) Build signed release APK
+
+```powershell
+.\gradlew.bat assembleRelease
+```
+
+Output file: `app/build/outputs/apk/release/app-release.apk`
+
+Optional verification:
+
+```powershell
+$apk = ".\app\build\outputs\apk\release\app-release.apk"
+Test-Path $apk
+Get-Item $apk
+Get-FileHash $apk -Algorithm SHA256
+
+# Signature check
+$sdk = "C:\Users\bjoe\AppData\Local\Android\Sdk"
+$apksigner = Get-ChildItem "$sdk\build-tools" -Recurse -Filter apksigner.bat | Sort-Object FullName -Descending | Select-Object -First 1
+& $apksigner.FullName verify --verbose $apk
+```
+
+Expected: `Verified using v2 scheme (APK Signature Scheme v2): true` and `Number of signers: 1`.  
+The signer must **not** be `CN=Android Debug`.
+
+### 2) Publish to GitHub Release
+
+```powershell
+$ver = "v1.3"
+Copy-Item ".\app\build\outputs\apk\release\app-release.apk" `
+          ".\app\build\outputs\apk\release\ai-quota-monitor-$ver-release.apk" -Force
+gh release create $ver `
+  ".\app\build\outputs\apk\release\ai-quota-monitor-$ver-release.apk" `
+  --repo bjoe0201/ai-quota-monitor-ANDROID `
+  --title "vX.Y — <short description>" `
+  --notes "Release notes here" `
+  --latest
+```
+
+To replace assets on an existing release:
+
+```powershell
+gh release upload $ver ".\app\build\outputs\apk\release\ai-quota-monitor-$ver-release.apk" --clobber
+# Remove wrong assets if needed:
+gh release delete-asset $ver wrong-asset-name.apk --yes
+```
+
+### 3) Verify after upload
+
+```powershell
+gh release view v1.3 --json tagName,name,url,publishedAt,assets
+```
+
+The release must contain exactly **one** asset: `ai-quota-monitor-vX.Y-release.apk`.
+
+### 4) Installation notes
+
+- Devices with a previously installed debug-signed APK must uninstall the old app first (signing key mismatch).
+- Always increment `versionCode` for every release.
+- Keep the same private release keystore for all future releases.
+
 ## Build Commands
 
 ```bash
