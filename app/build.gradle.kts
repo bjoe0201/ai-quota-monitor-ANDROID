@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// Load signing config from keystore.properties or environment variables
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(keystorePropsFile.inputStream())
+}
+fun keystoreProp(key: String, envKey: String): String? =
+    (keystoreProps.getProperty(key) as String?)?.takeIf(String::isNotBlank)
+        ?: System.getenv(envKey)?.takeIf(String::isNotBlank)
 
 android {
     namespace = "com.example.ai_quota_monitor_android"
@@ -22,9 +34,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val sf = keystoreProp("storeFile", "AI_QUOTA_RELEASE_STORE_FILE")
+                ?: error("Release signing: storeFile not set. Create keystore.properties or set AI_QUOTA_RELEASE_STORE_FILE.")
+            storeFile = rootProject.file(sf)
+            storePassword = keystoreProp("storePassword", "AI_QUOTA_RELEASE_STORE_PASSWORD")
+                ?: error("Release signing: storePassword not set.")
+            keyAlias = keystoreProp("keyAlias", "AI_QUOTA_RELEASE_KEY_ALIAS")
+                ?: error("Release signing: keyAlias not set.")
+            keyPassword = keystoreProp("keyPassword", "AI_QUOTA_RELEASE_KEY_PASSWORD")
+                ?: error("Release signing: keyPassword not set.")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
