@@ -23,16 +23,7 @@ build/
 local.properties
 
 # IntelliJ IDEA / Android Studio
-.idea/workspace.xml
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/deploymentTargetSelector.xml
-.idea/runConfigurations.xml
-.idea/.name
-.idea/markdown.xml
+.idea/
 
 # Signing keys — NEVER commit these
 *.jks

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.6 (2026-05-15)
+
+### Features
+
+- Add `scripts/ai-monitor-client-v4.4.js` (latest upstream Tampermonkey HTTP push client)
+- Keep Android WebView script (`app/src/main/assets/ai-monitor-android.js`) and Tampermonkey script separated by usage
+
+### Maintenance
+
+- Ignore IDE metadata by default via `.idea/` in `.gitignore`
+- Remove tracked `.idea` files from repository index to avoid uploading editor-local state
+
+---
+
 ## v1.5 (2026-05-15)
 
 ### Features — 服務帳號設定頁新功能

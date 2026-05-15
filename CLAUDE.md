@@ -203,7 +203,7 @@ Dashboard is divided into configurable **Sections**, each containing **Cards**. 
 
 ### Key Versions
 
-- **App version: 1.5** (versionCode 6)
+- **App version: 1.6** (versionCode 7)
 - AGP: 9.1.1 | Kotlin: 2.2.10 | Compose BOM: 2026.02.01
 - `minSdk = 31`, `targetSdk = 36`
 - Dependencies managed via `gradle/libs.versions.toml` (version catalog)

@@ -67,7 +67,7 @@
 
 ### 1. 安裝 APK
 
-從 [Releases](../../releases) 下載最新 `app-release.apk`，安裝至 Android 12+ 手機。
+從 [Releases](../../releases) 下載最新 `ai-quota-monitor-vX.Y-release.apk`，安裝至 Android 12+ 手機。
 
 ### 2. 登入 AI 服務
 
@@ -79,7 +79,7 @@
 
 ### （選用）PC 端 Tampermonkey 推送
 
-若偏好從電腦瀏覽器取得資料，可在電腦安裝 [Tampermonkey](https://www.tampermonkey.net/) 並載入腳本（同原始 [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) 專案），將資料推送至手機 IP:7890。
+若偏好從電腦瀏覽器取得資料，可在電腦安裝 [Tampermonkey](https://www.tampermonkey.net/) 並載入 `scripts/ai-monitor-client-v4.4.js`，將資料推送至手機 `IP:7890`。
 
 ---
 
