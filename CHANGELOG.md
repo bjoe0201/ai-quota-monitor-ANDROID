@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2 (2026-05-15)
+
+### Redesign
+- New app icon: multi-color gauge meter representing the 5 AI service monitors
+  - Each arc segment uses the service's accent color (green/blue/violet/purple/indigo)
+  - Gauge needle + AI sparkle accent on dark background
+  - Dedicated monochrome layer for Android 13+ themed icons
+  - Removed default Android robot webp fallbacks (minSdk 31 always uses adaptive icon)
+
 ## v1.1 (2026-05-15)
 
 ### Bug Fixes

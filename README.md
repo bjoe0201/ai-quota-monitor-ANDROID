@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/app-icon.svg" width="128" height="128" alt="AI Quota Monitor icon">
+</p>
+
 # AI Quota Monitor — Android
 
 Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) — a desktop widget that monitors AI service quotas. The original is Python + tkinter; this project rebuilds it as a native Android app with Kotlin + Jetpack Compose + Material3.
