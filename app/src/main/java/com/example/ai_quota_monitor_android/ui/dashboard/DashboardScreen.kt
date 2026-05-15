@@ -42,7 +42,7 @@ import com.example.ai_quota_monitor_android.ui.cards.ClockCardSidebar
 import com.example.ai_quota_monitor_android.ui.cards.ClockCardStrip
 import com.example.ai_quota_monitor_android.ui.cards.ServiceCard
 import com.example.ai_quota_monitor_android.ui.components.StatusBar
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 
 /** Ordered service keys used by all layout variants. */
 private val SERVICE_KEYS = listOf(
@@ -81,10 +81,11 @@ private fun LayoutA(
     viewModel: DashboardViewModel,
     onSettingsClick: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     Scaffold(
         topBar = { StandardTopBar(viewModel, onSettingsClick) },
         bottomBar = { BottomStatusBar(state) },
-        containerColor = AppColors.Bg,
+        containerColor = colors.Bg,
     ) { padding ->
         if (isLandscape) {
             Column(
@@ -137,7 +138,8 @@ private fun LayoutB(
     viewModel: DashboardViewModel,
     onSettingsClick: () -> Unit,
 ) {
-    Scaffold(containerColor = AppColors.Bg) { padding ->
+    val colors = LocalAppColors.current
+    Scaffold(containerColor = colors.Bg) { padding ->
         if (isLandscape) {
             Row(Modifier.fillMaxSize().padding(padding)) {
                 // Fixed sidebar
@@ -145,12 +147,12 @@ private fun LayoutB(
                     modifier = Modifier
                         .width(160.dp)
                         .fillMaxHeight()
-                        .background(AppColors.CardBg)
+                        .background(colors.CardBg)
                         .padding(horizontal = 12.dp, vertical = 14.dp),
                 ) {
                     Text(
                         text = "AI Quota\nMonitor",
-                        color = AppColors.Text,
+                        color = colors.Text,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         lineHeight = 22.sp,
@@ -161,19 +163,19 @@ private fun LayoutB(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "\u25CF ",
-                            color = if (state.serverRunning) AppColors.Success else AppColors.Error,
+                            color = if (state.serverRunning) colors.Success else colors.Error,
                             fontSize = 7.sp,
                         )
                         Text(
                             text = "HTTP :7890",
-                            color = AppColors.TextDim,
+                            color = colors.TextDim,
                             fontSize = 8.sp,
                             fontFamily = FontFamily.Monospace,
                         )
                     }
                     Text(
                         text = "${state.connectedServices} / ${state.config.services.size} 已連線",
-                        color = AppColors.TextDim,
+                        color = colors.TextDim,
                         fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                     )
@@ -186,7 +188,7 @@ private fun LayoutB(
                             Icon(
                                 Icons.Default.Refresh,
                                 contentDescription = "重新整理",
-                                tint = AppColors.TextMuted,
+                                tint = colors.TextMuted,
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -197,7 +199,7 @@ private fun LayoutB(
                             Icon(
                                 Icons.Default.Settings,
                                 contentDescription = "設定",
-                                tint = AppColors.TextMuted,
+                                tint = colors.TextMuted,
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -228,14 +230,14 @@ private fun LayoutB(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AppColors.CardBg)
+                        .background(colors.CardBg)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
                         text = "AI Quota\nMonitor",
-                        color = AppColors.Text,
+                        color = colors.Text,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         lineHeight = 17.sp,
@@ -246,7 +248,7 @@ private fun LayoutB(
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = "重新整理",
-                            tint = AppColors.TextMuted,
+                            tint = colors.TextMuted,
                             modifier = Modifier.size(18.dp),
                         )
                     }
@@ -254,7 +256,7 @@ private fun LayoutB(
                         Icon(
                             Icons.Default.Settings,
                             contentDescription = "設定",
-                            tint = AppColors.TextMuted,
+                            tint = colors.TextMuted,
                             modifier = Modifier.size(18.dp),
                         )
                     }
@@ -283,20 +285,21 @@ private fun LayoutC(
     viewModel: DashboardViewModel,
     onSettingsClick: () -> Unit,
 ) {
-    Scaffold(containerColor = AppColors.Bg) { padding ->
+    val colors = LocalAppColors.current
+    Scaffold(containerColor = colors.Bg) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             // Strip header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppColors.CardBg)
+                    .background(colors.CardBg)
                     .padding(horizontal = 12.dp, vertical = if (isLandscape) 7.dp else 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     text = "AI Quota Monitor",
-                    color = AppColors.Text,
+                    color = colors.Text,
                     fontWeight = FontWeight.Bold,
                     fontSize = if (isLandscape) 16.sp else 14.sp,
                 )
@@ -304,13 +307,13 @@ private fun LayoutC(
                     Modifier
                         .width(1.dp)
                         .height(18.dp)
-                        .background(AppColors.Border),
+                        .background(colors.Border),
                 )
                 ClockCardStrip(Modifier.weight(1f))
                 if (isLandscape) {
                     Text(
                         text = "${state.connectedServices}/${state.config.services.size}",
-                        color = if (state.serverRunning) AppColors.Success else AppColors.TextDim,
+                        color = if (state.serverRunning) colors.Success else colors.TextDim,
                         fontSize = 9.sp,
                         fontFamily = FontFamily.Monospace,
                     )
@@ -319,7 +322,7 @@ private fun LayoutC(
                     Icon(
                         Icons.Default.Refresh,
                         contentDescription = "重新整理",
-                        tint = AppColors.TextMuted,
+                        tint = colors.TextMuted,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -327,7 +330,7 @@ private fun LayoutC(
                     Icon(
                         Icons.Default.Settings,
                         contentDescription = "設定",
-                        tint = AppColors.TextMuted,
+                        tint = colors.TextMuted,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -366,10 +369,11 @@ private fun LayoutD(
     viewModel: DashboardViewModel,
     onSettingsClick: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     Scaffold(
         topBar = { StandardTopBar(viewModel, onSettingsClick) },
         bottomBar = { BottomStatusBar(state) },
-        containerColor = AppColors.Bg,
+        containerColor = colors.Bg,
     ) { padding ->
         if (isLandscape) {
             Row(
@@ -442,9 +446,9 @@ private fun StandardTopBar(viewModel: DashboardViewModel, onSettingsClick: () ->
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = AppColors.Bg,
-            titleContentColor = AppColors.Text,
-            actionIconContentColor = AppColors.TextMuted,
+            containerColor = LocalAppColors.current.Bg,
+            titleContentColor = LocalAppColors.current.Text,
+            actionIconContentColor = LocalAppColors.current.TextMuted,
         ),
     )
 }

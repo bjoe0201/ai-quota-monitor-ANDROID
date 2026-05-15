@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 
 @Composable
 fun StatusBar(
@@ -21,34 +21,32 @@ fun StatusBar(
     totalServices: Int,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(AppColors.Bg)
+            .background(colors.Bg)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Server status
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "\u25CF",
-                color = if (serverRunning) AppColors.Success else AppColors.Error,
+                color = if (serverRunning) colors.Success else colors.Error,
                 fontSize = 6.sp,
                 modifier = Modifier.padding(end = 4.dp),
             )
             Text(
                 text = if (serverRunning) "HTTP :7890" else "伺服器離線",
-                color = AppColors.TextDim,
+                color = colors.TextDim,
                 fontSize = 8.sp,
                 fontFamily = FontFamily.Monospace,
             )
         }
-
-        // Connected count
         Text(
             text = "$connectedServices / $totalServices 已連線",
-            color = AppColors.TextDim,
+            color = colors.TextDim,
             fontSize = 8.sp,
             fontFamily = FontFamily.Monospace,
         )

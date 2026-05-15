@@ -29,7 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -64,7 +64,7 @@ fun ClockCard(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(AppColors.CardBg)
+            .background(LocalAppColors.current.CardBg)
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -125,7 +125,7 @@ fun ClockCardCompact(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(AppColors.CardBg)
+            .background(LocalAppColors.current.CardBg)
             .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -215,7 +215,7 @@ fun ClockCardSidebar(modifier: Modifier = Modifier) {
 
     Column(
         modifier = modifier
-            .background(AppColors.CardBg)
+            .background(LocalAppColors.current.CardBg)
             .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

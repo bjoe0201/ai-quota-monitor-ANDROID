@@ -14,16 +14,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 
 @Composable
 fun KvRow(
     label: String,
     value: String = "",
-    valueColor: Color = AppColors.Text,
+    valueColor: Color = Color.Unspecified,
     showDivider: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalAppColors.current
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -31,15 +32,11 @@ fun KvRow(
                 .padding(vertical = 5.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = label,
-                color = AppColors.TextDim,
-                fontSize = 9.sp,
-            )
+            Text(text = label, color = colors.TextDim, fontSize = 9.sp)
             if (value.isNotEmpty()) {
                 Text(
                     text = value,
-                    color = valueColor,
+                    color = if (valueColor == Color.Unspecified) colors.Text else valueColor,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -47,7 +44,7 @@ fun KvRow(
             }
         }
         if (showDivider) {
-            HorizontalDivider(color = AppColors.Border)
+            HorizontalDivider(color = colors.Border)
         }
     }
 }
@@ -61,30 +58,29 @@ fun KvPairRow(
     showDivider: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalAppColors.current
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 5.dp),
         ) {
-            // Left pair
             Row(modifier = Modifier.weight(1f)) {
-                Text(text = leftLabel, color = AppColors.TextDim, fontSize = 9.sp)
+                Text(text = leftLabel, color = colors.TextDim, fontSize = 9.sp)
                 Text(
                     text = leftValue,
-                    color = AppColors.Text,
+                    color = colors.Text,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }
-            // Right pair
             Row(modifier = Modifier.weight(1f)) {
-                Text(text = rightLabel, color = AppColors.TextDim, fontSize = 9.sp)
+                Text(text = rightLabel, color = colors.TextDim, fontSize = 9.sp)
                 Text(
                     text = rightValue,
-                    color = AppColors.Text,
+                    color = colors.Text,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -93,7 +89,7 @@ fun KvPairRow(
             }
         }
         if (showDivider) {
-            HorizontalDivider(color = AppColors.Border)
+            HorizontalDivider(color = colors.Border)
         }
     }
 }

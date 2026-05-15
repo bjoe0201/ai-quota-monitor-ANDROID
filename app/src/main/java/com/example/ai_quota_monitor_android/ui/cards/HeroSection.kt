@@ -13,23 +13,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 
 @Composable
 fun HeroSection(
     label: String,
     value: String,
-    valueColor: androidx.compose.ui.graphics.Color = AppColors.Text,
+    valueColor: Color = Color.Unspecified,
     valueUnit: String? = null,
     badge: String? = null,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalAppColors.current
     Column(modifier = modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        // Label row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -37,28 +38,27 @@ fun HeroSection(
         ) {
             Text(
                 text = label.uppercase(),
-                color = AppColors.TextDim,
+                color = colors.TextDim,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
             )
             if (badge != null) {
                 Box(
                     modifier = Modifier
-                        .border(1.dp, AppColors.Border, RoundedCornerShape(4.dp))
+                        .border(1.dp, colors.Border, RoundedCornerShape(4.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text(text = badge, color = AppColors.TextMuted, fontSize = 8.sp)
+                    Text(text = badge, color = colors.TextMuted, fontSize = 8.sp)
                 }
             }
         }
-        // Value row
         Row(
             verticalAlignment = Alignment.Bottom,
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Text(
                 text = value,
-                color = valueColor,
+                color = if (valueColor == Color.Unspecified) colors.Text else valueColor,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -66,13 +66,13 @@ fun HeroSection(
             if (valueUnit != null) {
                 Text(
                     text = valueUnit,
-                    color = AppColors.TextMuted,
+                    color = colors.TextMuted,
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(start = 2.dp, bottom = 2.dp),
                 )
             }
         }
-        HorizontalDivider(color = AppColors.Border, modifier = Modifier.padding(top = 6.dp))
+        HorizontalDivider(color = colors.Border, modifier = Modifier.padding(top = 6.dp))
     }
 }

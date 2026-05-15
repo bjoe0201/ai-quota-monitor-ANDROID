@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.ai_quota_monitor_android.data.model.AuthStatus
 import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import java.time.Instant
 
 private const val DESKTOP_UA =
@@ -66,6 +66,7 @@ fun ServiceLoginScreen(
     var progress by remember { mutableIntStateOf(0) }
     var currentUrl by remember { mutableStateOf(loginUrl) }
     var googleSsoBlocked by remember { mutableStateOf(false) }
+    val colors = LocalAppColors.current
 
     Scaffold(
         topBar = {
@@ -75,7 +76,7 @@ fun ServiceLoginScreen(
                         Text(displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Text(
                             text = currentUrl.take(80),
-                            color = AppColors.TextDim,
+                            color = colors.TextDim,
                             fontSize = 8.sp,
                             maxLines = 1,
                         )
@@ -99,17 +100,17 @@ fun ServiceLoginScreen(
                         viewModel.onServiceLoggedIn(serviceKey)
                         onBack()
                     }) {
-                        Icon(Icons.Default.Check, contentDescription = "完成登入", tint = AppColors.Success)
+                        Icon(Icons.Default.Check, contentDescription = "完成登入", tint = colors.Success)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppColors.Bg,
-                    titleContentColor = AppColors.Text,
-                    navigationIconContentColor = AppColors.TextMuted,
+                    containerColor = colors.Bg,
+                    titleContentColor = colors.Text,
+                    navigationIconContentColor = colors.TextMuted,
                 ),
             )
         },
-        containerColor = AppColors.Bg,
+        containerColor = colors.Bg,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -120,8 +121,8 @@ fun ServiceLoginScreen(
                 LinearProgressIndicator(
                     progress = { progress / 100f },
                     modifier = Modifier.fillMaxWidth(),
-                    color = AppColors.Info,
-                    trackColor = AppColors.Border,
+                    color = colors.Info,
+                    trackColor = colors.Border,
                 )
             }
 
@@ -131,13 +132,13 @@ fun ServiceLoginScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp)
-                        .border(1.dp, AppColors.Warning, RoundedCornerShape(8.dp))
-                        .background(AppColors.CardBg, RoundedCornerShape(8.dp))
+                        .border(1.dp, colors.Warning, RoundedCornerShape(8.dp))
+                        .background(colors.CardBg, RoundedCornerShape(8.dp))
                         .padding(16.dp),
                 ) {
                     Text(
                         text = "Google 登入不支援內嵌瀏覽器",
-                        color = AppColors.Warning,
+                        color = colors.Warning,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -149,7 +150,7 @@ fun ServiceLoginScreen(
                                 "2. 開啟對應的服務頁面\n" +
                                 "3. 腳本會自動透過 HTTP 將資料傳送到本 App（port 7890）\n\n" +
                                 "請確認手機與電腦在同一網路下。",
-                        color = AppColors.TextMuted,
+                        color = colors.TextMuted,
                         fontSize = 10.sp,
                         lineHeight = 16.sp,
                     )

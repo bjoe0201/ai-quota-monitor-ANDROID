@@ -10,7 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 
 /**
  * 28-segment progress bar, ported from gui/widgets.py ProgressBar.
@@ -23,6 +23,7 @@ fun SegmentedProgressBar(
     segments: Int = 28,
     height: Int = 6,
 ) {
+    val borderColor = LocalAppColors.current.Border
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -36,7 +37,7 @@ fun SegmentedProgressBar(
 
         for (i in 0 until segments) {
             val x = i * (segW + gap)
-            val c = if (i < filled) color else AppColors.Border
+            val c = if (i < filled) color else borderColor
             drawRoundRect(
                 color = c,
                 topLeft = Offset(x, 0f),

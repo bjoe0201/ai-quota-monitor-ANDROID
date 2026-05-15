@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import com.example.ai_quota_monitor_android.util.percentColor
 
 @Composable
@@ -30,19 +30,19 @@ fun BarRow(
     resetUrgent: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalAppColors.current
     val barColor = color ?: percentColor(percent)
 
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        // Top: label + reset pill + percent
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = label, color = AppColors.TextDim, fontSize = 9.sp)
+                Text(text = label, color = colors.TextDim, fontSize = 9.sp)
                 if (resetText != null) {
-                    val pillColor = if (resetUrgent) AppColors.Warning else AppColors.Violet
+                    val pillColor = if (resetUrgent) colors.Warning else colors.Violet
                     Box(
                         modifier = Modifier
                             .padding(start = 6.dp)
@@ -67,19 +67,15 @@ fun BarRow(
                 fontFamily = FontFamily.Monospace,
             )
         }
-
-        // Progress bar
         SegmentedProgressBar(
             percent = percent,
             color = barColor,
             modifier = Modifier.padding(top = 2.dp),
         )
-
-        // Detail
         if (detail.isNotEmpty()) {
             Text(
                 text = detail,
-                color = AppColors.TextFaint,
+                color = colors.TextFaint,
                 fontSize = 8.sp,
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.padding(top = 2.dp),

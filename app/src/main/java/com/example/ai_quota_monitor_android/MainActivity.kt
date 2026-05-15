@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,7 +29,8 @@ class MainActivity : ComponentActivity() {
         startMonitorService()
 
         setContent {
-            AiQuotaMonitorTheme {
+            val uiState by viewModel.uiState.collectAsState()
+            AiQuotaMonitorTheme(themeMode = uiState.config.themeMode) {
                 // Simple stack-based navigation
                 var screen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
 

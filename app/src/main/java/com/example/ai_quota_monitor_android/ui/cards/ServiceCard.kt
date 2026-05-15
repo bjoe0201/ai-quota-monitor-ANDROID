@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,7 +25,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ai_quota_monitor_android.data.model.ServiceResult
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.AppColorSet
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import com.example.ai_quota_monitor_android.ui.theme.ServiceAccents
 import com.example.ai_quota_monitor_android.util.formatTokens
 import com.example.ai_quota_monitor_android.util.headerTint
@@ -38,7 +38,7 @@ private sealed class CardRow {
     data class Hero(
         val label: String,
         val value: String,
-        val color: Color = AppColors.Text,
+        val color: Color = Color.Unspecified,
         val unit: String? = null,
         val badge: String? = null,
     ) : CardRow()
@@ -47,7 +47,7 @@ private sealed class CardRow {
         val label: String,
         val percent: Float,
         val detail: String = "",
-        val color: Color = AppColors.Info,
+        val color: Color? = null,
         val resetText: String? = null,
         val resetUrgent: Boolean = false,
     ) : CardRow()
@@ -55,7 +55,7 @@ private sealed class CardRow {
     data class Kv(
         val label: String,
         val value: String = "",
-        val valueColor: Color = AppColors.Text,
+        val valueColor: Color = Color.Unspecified,
     ) : CardRow()
 
     data class Pair(
@@ -79,40 +79,38 @@ fun ServiceCard(
     onToggleCollapse: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalAppColors.current
     val accent = ServiceAccents.get(serviceKey)
-    val headerBg = headerTint(accent)
+    val headerBg = headerTint(accent, colors.CardBg)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(AppColors.CardBg),
+            .background(colors.CardBg),
     ) {
-        // -- Header ---------------------------------------------------------------
         CardHeader(
             serviceKey = serviceKey,
             displayName = displayName,
             accent = accent,
             headerBg = headerBg,
             collapsed = collapsed,
-            statusColor = statusDotColor(result),
+            statusColor = statusDotColor(result, colors),
             timestamp = result?.data?.get("updated_at")?.toString() ?: "",
             onToggle = onToggleCollapse,
         )
-
-        // -- Content (collapsible) ------------------------------------------------
         AnimatedVisibility(visible = !collapsed) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 if (result == null) {
-                    PlaceholderText("載入中...", AppColors.TextDim)
+                    PlaceholderText("載入中...", colors.TextDim)
                 } else if (!result.success) {
                     val isWaiting = result.error?.contains("等待瀏覽器") == true
                     PlaceholderText(
                         text = if (isWaiting) "等待瀏覽器資料..." else (result.error ?: "未知錯誤"),
-                        color = if (isWaiting) AppColors.TextDim else AppColors.Error,
+                        color = if (isWaiting) colors.TextDim else colors.Error,
                     )
                 } else {
-                    val rows = formatData(serviceKey, result.data)
+                    val rows = formatData(serviceKey, result.data, colors)
                     RenderRows(rows)
                 }
             }
@@ -133,6 +131,7 @@ private fun CardHeader(
     timestamp: String,
     onToggle: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -141,7 +140,6 @@ private fun CardHeader(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Collapse toggle
         Text(
             text = if (collapsed) "\u25B8" else "\u25BE",
             color = accent,
@@ -149,8 +147,6 @@ private fun CardHeader(
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.width(4.dp))
-
-        // Glyph badge
         val glyph = glyphFor(serviceKey)
         Box(
             modifier = Modifier
@@ -161,7 +157,7 @@ private fun CardHeader(
         ) {
             Text(
                 text = glyph,
-                color = AppColors.Bg,
+                color = colors.Bg,
                 fontSize = 7.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -169,29 +165,23 @@ private fun CardHeader(
             )
         }
         Spacer(modifier = Modifier.width(6.dp))
-
-        // Name
         Text(
             text = displayName,
-            color = AppColors.Text,
+            color = colors.Text,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
-
-        // Status dot
         Text(
             text = "\u25CF",
             color = statusColor,
             fontSize = 6.sp,
             modifier = Modifier.padding(end = 4.dp),
         )
-
-        // Timestamp
         if (timestamp.isNotEmpty()) {
             Text(
                 text = timestamp,
-                color = AppColors.TextFaint,
+                color = colors.TextFaint,
                 fontSize = 8.sp,
                 fontFamily = FontFamily.Monospace,
             )
@@ -203,6 +193,7 @@ private fun CardHeader(
 
 @Composable
 private fun RenderRows(rows: List<CardRow>) {
+    val colors = LocalAppColors.current
     val lastKvIdx = rows.indexOfLast { it is CardRow.Kv || it is CardRow.Pair }
     rows.forEachIndexed { i, row ->
         val isLast = (i == lastKvIdx)
@@ -237,12 +228,12 @@ private fun RenderRows(rows: List<CardRow>) {
             )
             is CardRow.Divider -> {
                 HorizontalDivider(
-                    color = AppColors.Border,
+                    color = colors.Border,
                     modifier = Modifier.padding(top = 6.dp, bottom = 3.dp),
                 )
                 Text(
                     text = row.label,
-                    color = AppColors.TextDim,
+                    color = colors.TextDim,
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -267,43 +258,42 @@ private fun glyphFor(key: String): String = when (key) {
     else -> "\u00b7"
 }
 
-private fun statusDotColor(result: ServiceResult?): Color = when {
-    result == null -> AppColors.TextDim
-    !result.success && result.error?.contains("等待瀏覽器") == true -> AppColors.Warning
-    !result.success -> AppColors.Error
-    else -> AppColors.Success
+private fun statusDotColor(result: ServiceResult?, colors: AppColorSet): Color = when {
+    result == null -> colors.TextDim
+    !result.success && result.error?.contains("等待瀏覽器") == true -> colors.Warning
+    !result.success -> colors.Error
+    else -> colors.Success
 }
 
 private fun pctColor(pct: Float): Color = percentColor(pct)
 
 // -- Data formatting (ported from desktop_widget/cards.py _format_data) ------------
 
-private fun formatData(serviceKey: String, data: Map<String, Any?>): List<CardRow> {
+private fun formatData(serviceKey: String, data: Map<String, Any?>, colors: AppColorSet): List<CardRow> {
     val rows = mutableListOf<CardRow>()
 
-    // Stale warning
     data["stale_warning"]?.toString()?.let {
-        rows.add(CardRow.Kv(label = it, valueColor = AppColors.Warning))
+        rows.add(CardRow.Kv(label = it, valueColor = colors.Warning))
     }
 
     when (serviceKey) {
-        "browser_openai" -> formatOpenAI(data, rows)
-        "browser_claude_usage" -> formatClaudeUsage(data, rows)
-        "browser_claude_billing" -> formatClaudeBilling(data, rows)
-        "browser_github_copilot" -> formatGitHubCopilot(data, rows)
-        "browser_openrouter" -> formatOpenRouter(data, rows)
+        "browser_openai" -> formatOpenAI(data, rows, colors)
+        "browser_claude_usage" -> formatClaudeUsage(data, rows, colors)
+        "browser_claude_billing" -> formatClaudeBilling(data, rows, colors)
+        "browser_github_copilot" -> formatGitHubCopilot(data, rows, colors)
+        "browser_openrouter" -> formatOpenRouter(data, rows, colors)
     }
 
     if (rows.isEmpty() || (rows.size == 1 && rows[0] is CardRow.Kv && (rows[0] as CardRow.Kv).value.isEmpty())) {
         rows.clear()
-        rows.add(CardRow.Kv(label = "無資料", valueColor = AppColors.TextDim))
+        rows.add(CardRow.Kv(label = "無資料", valueColor = colors.TextDim))
     }
     return rows
 }
 
-private fun formatOpenAI(data: Map<String, Any?>, rows: MutableList<CardRow>) {
+private fun formatOpenAI(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {
     data.num("balance_usd")?.let {
-        rows.add(CardRow.Hero(label = "帳戶餘額", value = "$%.2f".format(it), color = AppColors.Success))
+        rows.add(CardRow.Hero(label = "帳戶餘額", value = "$%.2f".format(it), color = colors.Success))
     }
     val used = data.num("credits_used_usd")
     val total = data.num("credits_total_usd")
@@ -326,7 +316,7 @@ private fun formatOpenAI(data: Map<String, Any?>, rows: MutableList<CardRow>) {
     }
 }
 
-private fun formatClaudeUsage(data: Map<String, Any?>, rows: MutableList<CardRow>) {
+private fun formatClaudeUsage(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {
     data.num("session_percent")?.toFloat()?.let { pct ->
         val reset = data["session_reset"]?.toString()?.takeIf { it.isNotEmpty() }
         rows.add(CardRow.Bar(
@@ -359,15 +349,15 @@ private fun formatClaudeUsage(data: Map<String, Any?>, rows: MutableList<CardRow
             parts.add(if (data["auto_reload"] == true) "自動儲值" else "儲值:關")
         }
         if (parts.isNotEmpty()) {
-            rows.add(CardRow.Kv(label = "", value = parts.joinToString("  \u00b7  "), valueColor = AppColors.Green))
+            rows.add(CardRow.Kv(label = "", value = parts.joinToString("  \u00b7  "), valueColor = colors.Green))
         }
     }
 }
 
-private fun formatClaudeBilling(data: Map<String, Any?>, rows: MutableList<CardRow>) {
+private fun formatClaudeBilling(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {
     data.num("balance_usd")?.let {
         rows.add(CardRow.Hero(
-            label = "帳戶餘額", value = "$%.2f".format(it), color = AppColors.Success,
+            label = "帳戶餘額", value = "$%.2f".format(it), color = colors.Success,
             badge = data["plan"]?.toString(),
         ))
     }
@@ -383,13 +373,13 @@ private fun formatClaudeBilling(data: Map<String, Any?>, rows: MutableList<CardR
     }
 }
 
-private fun formatGitHubCopilot(data: Map<String, Any?>, rows: MutableList<CardRow>) {
+private fun formatGitHubCopilot(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {
     val consumed = data.num("included_consumed")
     val total = data.num("included_total")
     val pct = data.num("included_percent")?.toFloat()
     if (consumed != null && total != null) {
         val remaining = total - consumed
-        val heroColor = if (pct != null) pctColor(pct) else AppColors.Info
+        val heroColor = if (pct != null) pctColor(pct) else colors.Info
         rows.add(CardRow.Hero(
             label = "PREMIUM REQUESTS 剩餘",
             value = "%.0f".format(remaining),
@@ -408,19 +398,19 @@ private fun formatGitHubCopilot(data: Map<String, Any?>, rows: MutableList<CardR
         ))
     }
     data.num("billed_usd")?.takeIf { it > 0 }?.let {
-        rows.add(CardRow.Kv("已計費", "$%.2f".format(it), AppColors.Peach))
+        rows.add(CardRow.Kv("已計費", "$%.2f".format(it), colors.Peach))
     }
     data["next_billing"]?.toString()?.takeIf { it.isNotEmpty() }?.let {
-        rows.add(CardRow.Kv("下次計費", it, AppColors.Violet))
+        rows.add(CardRow.Kv("下次計費", it, colors.Violet))
     }
 }
 
-private fun formatOpenRouter(data: Map<String, Any?>, rows: MutableList<CardRow>) {
+private fun formatOpenRouter(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {
     data["parse_error"]?.toString()?.let {
-        rows.add(CardRow.Kv("解析失敗", it, AppColors.Error))
+        rows.add(CardRow.Kv("解析失敗", it, colors.Error))
     }
     data.num("balance_usd")?.let {
-        rows.add(CardRow.Hero(label = "帳戶餘額", value = "$%.2f".format(it), color = AppColors.Success))
+        rows.add(CardRow.Hero(label = "帳戶餘額", value = "$%.2f".format(it), color = colors.Success))
     }
     val spendVal = data.num("month_spend_usd")?.let { "$%.4f".format(it) } ?: ""
     val reqVal = data.num("month_requests")?.let { "%,.0f 次".format(it) } ?: ""

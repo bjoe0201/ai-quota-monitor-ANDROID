@@ -37,14 +37,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
-import com.example.ai_quota_monitor_android.data.model.DashboardConfig
 import com.example.ai_quota_monitor_android.data.model.DashboardLayout
+import com.example.ai_quota_monitor_android.data.model.ThemeMode
 import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
-import com.example.ai_quota_monitor_android.ui.theme.AppColors
+import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import com.example.ai_quota_monitor_android.ui.theme.ServiceAccents
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +56,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val config = state.config
+    val colors = LocalAppColors.current
 
     Scaffold(
         topBar = {
@@ -67,13 +68,13 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppColors.Bg,
-                    titleContentColor = AppColors.Text,
-                    navigationIconContentColor = AppColors.TextMuted,
+                    containerColor = colors.Bg,
+                    titleContentColor = colors.Text,
+                    navigationIconContentColor = colors.TextMuted,
                 ),
             )
         },
-        containerColor = AppColors.Bg,
+        containerColor = colors.Bg,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -82,6 +83,21 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
+            // -- Theme --
+            SectionTitle("主題")
+            SettingsCard {
+                ToggleRow(
+                    label = "淺色模式",
+                    sublabel = if (config.themeMode == ThemeMode.Light) "Light — 白底淺色" else "Dark — 暗色（預設）",
+                    checked = config.themeMode == ThemeMode.Light,
+                    onCheckedChange = {
+                        viewModel.updateConfig(config.copy(themeMode = if (it) ThemeMode.Light else ThemeMode.Dark))
+                    },
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // -- Dashboard layout picker --
             SectionTitle("Dashboard 佈局")
             SettingsCard {
@@ -92,7 +108,7 @@ fun SettingsScreen(
                     Triple(DashboardLayout.D, "Bento Mosaic", "不對稱馬賽克，最有儀表板感"),
                 )
                 layouts.forEachIndexed { i, (id, label, desc) ->
-                    if (i > 0) HorizontalDivider(color = AppColors.Border)
+                    if (i > 0) HorizontalDivider(color = colors.Border)
                     LayoutPickerRow(
                         id = id,
                         label = label,
@@ -124,7 +140,7 @@ fun SettingsScreen(
             SectionTitle("服務帳號")
             SettingsCard {
                 config.services.entries.forEachIndexed { i, (key, svc) ->
-                    if (i > 0) HorizontalDivider(color = AppColors.Border)
+                    if (i > 0) HorizontalDivider(color = colors.Border)
                     val authStatus = config.authStatus[key]
                     val isLoggedIn = authStatus?.loggedIn == true
                     Row(
@@ -138,13 +154,13 @@ fun SettingsScreen(
                         Column {
                             Text(
                                 text = svc.displayName,
-                                color = AppColors.Text,
+                                color = colors.Text,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = if (isLoggedIn) "已登入" else "尚未登入",
-                                color = if (isLoggedIn) AppColors.Success else AppColors.TextDim,
+                                color = if (isLoggedIn) colors.Success else colors.TextDim,
                                 fontSize = 9.sp,
                             )
                         }
@@ -163,8 +179,8 @@ fun SettingsScreen(
             // -- About --
             SectionTitle("關於")
             SettingsCard {
-                KvSettingsRow("版本", "1.2")
-                HorizontalDivider(color = AppColors.Border)
+                KvSettingsRow("版本", "1.3")
+                HorizontalDivider(color = colors.Border)
                 KvSettingsRow("資料來源", "WebView + HTTP Server")
             }
 
@@ -175,9 +191,10 @@ fun SettingsScreen(
 
 @Composable
 private fun SectionTitle(text: String) {
+    val colors = LocalAppColors.current
     Text(
         text = text.uppercase(),
-        color = AppColors.TextDim,
+        color = colors.TextDim,
         fontSize = 9.sp,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(bottom = 6.dp, top = 4.dp),
@@ -186,11 +203,12 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun SettingsCard(content: @Composable () -> Unit) {
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(AppColors.CardBg)
+            .background(colors.CardBg)
             .padding(horizontal = 4.dp),
     ) {
         content()
@@ -204,6 +222,7 @@ private fun ToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,17 +231,17 @@ private fun ToggleRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = label, color = AppColors.Text, fontSize = 12.sp)
+            Text(text = label, color = colors.Text, fontSize = 12.sp)
             if (sublabel.isNotEmpty()) {
-                Text(text = sublabel, color = AppColors.TextDim, fontSize = 9.sp)
+                Text(text = sublabel, color = colors.TextDim, fontSize = 9.sp)
             }
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedTrackColor = AppColors.Success,
-                uncheckedTrackColor = AppColors.Border,
+                checkedTrackColor = colors.Success,
+                uncheckedTrackColor = colors.Border,
             ),
         )
     }
@@ -230,14 +249,15 @@ private fun ToggleRow(
 
 @Composable
 private fun KvSettingsRow(label: String, value: String) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text = label, color = AppColors.TextDim, fontSize = 11.sp)
-        Text(text = value, color = AppColors.Text, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(text = label, color = colors.TextDim, fontSize = 11.sp)
+        Text(text = value, color = colors.Text, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -249,41 +269,43 @@ private fun LayoutPickerRow(
     selected: Boolean,
     onSelect: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
-            .background(if (selected) AppColors.CardBgHover else Color.Transparent)
+            .background(if (selected) colors.CardBgHover else Color.Transparent)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LayoutMiniPreview(id)
         Column(Modifier.weight(1f)) {
-            Text(text = label, color = AppColors.Text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(text = desc, color = AppColors.TextDim, fontSize = 9.sp)
+            Text(text = label, color = colors.Text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = desc, color = colors.TextDim, fontSize = 9.sp)
         }
         Box(
             modifier = Modifier
                 .size(16.dp)
                 .clip(CircleShape)
-                .background(if (selected) AppColors.Accent else Color.Transparent)
-                .border(1.5.dp, if (selected) AppColors.Accent else AppColors.TextDim, CircleShape),
+                .background(if (selected) colors.Accent else Color.Transparent)
+                .border(1.5.dp, if (selected) colors.Accent else colors.TextDim, CircleShape),
         )
     }
 }
 
 @Composable
 private fun LayoutMiniPreview(variant: DashboardLayout) {
-    val clockColor = AppColors.Accent.copy(alpha = 0.65f)
-    val cardColor = AppColors.BorderStrong
+    val colors = LocalAppColors.current
+    val clockColor = colors.Accent.copy(alpha = 0.65f)
+    val cardColor = colors.BorderStrong
 
     Box(
         modifier = Modifier
             .width(42.dp)
             .height(28.dp)
             .clip(RoundedCornerShape(3.dp))
-            .background(AppColors.Bg),
+            .background(colors.Bg),
     ) {
         when (variant) {
             DashboardLayout.A -> Column(
