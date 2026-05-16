@@ -73,6 +73,8 @@
 
 進入 **設定 → 服務帳號**，依序對需要監控的服務點選「登入」，在內建 WebView 完成帳號登入後返回即可。
 
+> **Claude API (platform.claude.com)** 使用 Google SSO 登入，Google 會封鎖 App 內 WebView。請改用頁面下方的 **Email 登入**，或使用 PC 端 Tampermonkey 腳本推送。
+
 ### 3. 查看儀表板
 
 返回主畫面，系統會自動在背景載入各服務頁面並更新用量資訊。

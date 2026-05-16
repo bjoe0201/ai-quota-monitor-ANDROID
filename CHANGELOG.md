@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.7 (2026-05-17)
+
+### Bug Fixes — Google SSO Login for Claude API
+- **Fix Google OAuth blocked in WebView** — suppress `X-Requested-With` header via
+  AndroidX WebKit `setRequestedWithHeaderOriginAllowList(emptySet())` so Google does not
+  detect the embedded WebView and block the OAuth flow.
+- **Fix premature Google SSO banner** — only trigger the "Google 登入不支援" banner when
+  the WebView reaches the actual dead-end `/gsi/` endpoint, not during the normal
+  `/v3/signin/` or `/signin/oauth/` OAuth steps that work fine in WebView.
+- **Auto-redirect after /gsi/ failure** — when the GSI callback fails, navigate back to
+  the login page so the user can use the email login option instead.
+- **Banner no longer hides WebView** — the warning banner now appears above the WebView
+  instead of replacing it, allowing users to scroll down and use alternative login methods.
+- **Updated banner guidance** — banner now says "請往下捲動，改用 Email 登入" to guide
+  users toward the email login that works in WebView.
+
+### Improvements
+- Update Chrome User-Agent from v125 to v136 for better compatibility with service pages.
+- Add "在外部瀏覽器開啟" button on the SSO blocked banner as a fallback.
+- Clear the SSO banner automatically if the user successfully logs in via email.
+
+---
+
 ## v1.6 (2026-05-15)
 
 ### Features

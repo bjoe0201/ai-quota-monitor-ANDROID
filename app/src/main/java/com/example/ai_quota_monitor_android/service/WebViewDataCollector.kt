@@ -7,6 +7,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import com.example.ai_quota_monitor_android.data.repository.DataStoreRepository
 import org.json.JSONObject
 
@@ -50,6 +52,7 @@ class WebViewDataCollector(private val context: Context) {
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
             settings.userAgentString = DESKTOP_UA
+            suppressRequestedWithHeader(this)
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
@@ -88,6 +91,7 @@ class WebViewDataCollector(private val context: Context) {
             @Suppress("DEPRECATION")
             settings.databaseEnabled = true
             settings.userAgentString = DESKTOP_UA
+            suppressRequestedWithHeader(this)
             addJavascriptInterface(DataBridge(serviceKey), "AndroidBridge")
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView, loadedUrl: String, favicon: android.graphics.Bitmap?) {
@@ -177,6 +181,22 @@ class WebViewDataCollector(private val context: Context) {
         const val DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                "Chrome/125.0.6422.176 Safari/537.36"
+                "Chrome/136.0.0.0 Safari/537.36"
+
+        /**
+         * Suppress the X-Requested-With header that Android WebView adds automatically.
+         * Google uses this header to detect embedded WebViews and block OAuth.
+         */
+        fun suppressRequestedWithHeader(webView: WebView) {
+            try {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                    // Empty allow-list → header is never sent to any origin
+                    WebSettingsCompat.setRequestedWithHeaderOriginAllowList(
+                        webView.settings,
+                        emptySet(),
+                    )
+                }
+            } catch (_: Exception) { /* old WebView APK */ }
+        }
     }
 }
