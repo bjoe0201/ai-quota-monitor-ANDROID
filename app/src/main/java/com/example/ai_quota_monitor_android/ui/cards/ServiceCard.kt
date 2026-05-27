@@ -403,6 +403,21 @@ private fun formatGitHubCopilot(data: Map<String, Any?>, rows: MutableList<CardR
     data["next_billing"]?.toString()?.takeIf { it.isNotEmpty() }?.let {
         rows.add(CardRow.Kv("下次計費", it, colors.Violet))
     }
+    val budgetSpent = data.num("budget_spent_usd")
+    val budgetLimit = data.num("budget_limit_usd")
+    val budgetPct = data.num("budget_percent")?.toFloat()
+    if (budgetSpent != null || budgetPct != null) {
+        val pct = budgetPct ?: 0f
+        val detail = if (budgetSpent != null && budgetLimit != null)
+            "$%.2f / $%.2f".format(budgetSpent, budgetLimit)
+        else ""
+        rows.add(CardRow.Bar(
+            label = "All Premium Request SKUs",
+            percent = pct,
+            detail = detail,
+            color = pctColor(pct),
+        ))
+    }
 }
 
 private fun formatOpenRouter(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {

@@ -318,19 +318,67 @@
     // ── GitHub Copilot DOM fallback ──────────────────
 
     if (PAGE.key === 'github_copilot') {
+        // Parse /settings/billing/budgets — "All Premium Request SKUs" row
+        function parseDOMGitHubBudgets() {
+            var trs = document.querySelectorAll('tr');
+            var targetRow = null;
+            for (var i = 0; i < trs.length; i++) {
+                if ((trs[i].textContent || '').indexOf('All Premium Request SKUs') >= 0) {
+                    targetRow = trs[i];
+                    break;
+                }
+            }
+            if (!targetRow) return false;
+            var fields = {};
+            var progressBar = targetRow.querySelector('[role="progressbar"]');
+            if (progressBar) {
+                var now = parseFloat(progressBar.getAttribute('aria-valuenow'));
+                if (isFinite(now)) fields.budget_percent = now;
+            }
+            var linkTexts = targetRow.querySelectorAll('[class*="LinkText"]');
+            var amounts = [];
+            for (var j = 0; j < linkTexts.length; j++) {
+                var val = parseFloat((linkTexts[j].textContent || '').replace(/[$,]/g, ''));
+                if (isFinite(val)) amounts.push(val);
+            }
+            if (amounts.length >= 2) {
+                fields.budget_spent_usd = amounts[0];
+                fields.budget_limit_usd = amounts[1];
+                if (fields.budget_limit_usd > 0) {
+                    fields.budget_percent = Math.round(fields.budget_spent_usd / fields.budget_limit_usd * 1000) / 10;
+                }
+            }
+            if (Object.keys(fields).length === 0) return false;
+            merge('github_copilot', fields);
+            return true;
+        }
+
         setTimeout(function () {
-            var container = document.getElementById('copilot-overages-usage');
-            if (!container) return;
-            var progressItem = container.querySelector('.Progress-item');
-            if (progressItem) {
-                var m = (progressItem.style.width || '').match(/([\d.]+)%/);
-                if (m) {
-                    var pct = parseFloat(m[1]);
-                    merge('github_copilot', {
-                        included_percent: Math.round(pct * 10) / 10,
-                        included_total: 1500,
-                        included_consumed: Math.round(pct / 100 * 1500 * 10) / 10,
+            var path = location.pathname;
+            if (path.indexOf('/settings/billing/budgets') === 0) {
+                if (!parseDOMGitHubBudgets()) {
+                    var obs = new MutationObserver(function () {
+                        if (parseDOMGitHubBudgets()) obs.disconnect();
                     });
+                    obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+                    setTimeout(function () { obs.disconnect(); }, 30000);
+                }
+            } else {
+                // /settings/copilot/features — progress bar fallback
+                var container = document.getElementById('copilot-overages-usage');
+                if (container) {
+                    var progressItem = container.querySelector('.Progress-item');
+                    if (progressItem) {
+                        var m = (progressItem.style.width || '').match(/([\d.]+)%/);
+                        if (m) {
+                            var pct = parseFloat(m[1]);
+                            merge('github_copilot', {
+                                included_percent: Math.round(pct * 10) / 10,
+                                included_total: 1500,
+                                included_consumed: Math.round(pct / 100 * 1500 * 10) / 10,
+                            });
+                        }
+                    }
                 }
             }
         }, 3000);

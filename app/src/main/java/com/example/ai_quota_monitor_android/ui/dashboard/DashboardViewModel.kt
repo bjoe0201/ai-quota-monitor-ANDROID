@@ -101,6 +101,14 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 val auth = config.authStatus[key]
                 if (auth?.loggedIn == true && svc.url.isNotEmpty()) {
                     collector!!.loadService(key, svc.url)
+                    // GitHub Copilot: also load billing/budgets in a parallel WebView
+                    // so both pages send data to the same github_copilot DataStore key
+                    if (key == "browser_github_copilot") {
+                        collector!!.loadService(
+                            "browser_github_copilot_budgets",
+                            "https://github.com/settings/billing/budgets",
+                        )
+                    }
                 }
             }
         }

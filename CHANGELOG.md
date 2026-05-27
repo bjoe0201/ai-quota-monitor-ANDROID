@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.8 (2026-05-27)
+
+### Features — GitHub Copilot 預算監控
+
+- **新增 "All Premium Request SKUs" 預算 BAR** — GitHub Copilot 卡片現在同時顯示：
+  - 原有的 Premium Requests 免費額度進度條（1500 次）
+  - 新的付費預算進度條（`billing/budgets` 頁面）：顯示已使用金額 / 預算上限（如 $0.21 / $50.00）
+- **同時開啟兩個 WebView** — GitHub Copilot 同步載入兩頁：
+  - `github.com/settings/copilot/features`（免費額度）
+  - `github.com/settings/billing/budgets`（付費預算）
+  - 兩者資料自動合併至同一張卡片
+- **Tampermonkey 腳本升至 v4.4.2** — 新增 `@match https://github.com/settings/billing/budgets*`，支援從 PC 瀏覽器推送預算資料
+
+### UI
+
+- **StatusBar 顯示版本號** — 底部狀態列中間新增版本號（如 `v1.8`），方便確認 App 已更新
+
+---
+
 ## v1.7 (2026-05-17)
 
 ### Bug Fixes — Google SSO Login for Claude API

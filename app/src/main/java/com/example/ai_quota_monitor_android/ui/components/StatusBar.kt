@@ -45,6 +45,12 @@ fun StatusBar(
             )
         }
         Text(
+            text = "v1.8",
+            color = colors.TextFaint,
+            fontSize = 8.sp,
+            fontFamily = FontFamily.Monospace,
+        )
+        Text(
             text = "$connectedServices / $totalServices 已連線",
             color = colors.TextDim,
             fontSize = 8.sp,
