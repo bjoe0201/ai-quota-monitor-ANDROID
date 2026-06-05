@@ -179,10 +179,22 @@
 
     var rule = RULES[PAGE.key];
 
+    // ── Claude Usage SPA hash check ─────────────────
+    function isClaudeOnUsagePage() {
+        if (location.pathname === '/settings/usage') return true;
+        if (location.pathname === '/new') {
+            return location.hash.replace(/^#/, '').startsWith('settings/usage');
+        }
+        return false;
+    }
+
     if (rule) {
         // Intercept fetch
         var origFetch = window.fetch;
         window.fetch = function () {
+            // 早期退出：不在 Claude Usage 目標頁面時完全透通
+            if (PAGE.key === 'claude_usage' && !isClaudeOnUsagePage())
+                return origFetch.apply(this, arguments);
             return origFetch.apply(this, arguments).then(function (resp) {
                 try {
                     var url = (typeof arguments[0] === 'string') ? arguments[0] : (arguments[0] && arguments[0].url) || '';
@@ -209,6 +221,7 @@
         XMLHttpRequest.prototype.send = function () {
             var xhr = this;
             xhr.addEventListener('load', function () {
+                if (PAGE.key === 'claude_usage' && !isClaudeOnUsagePage()) return;
                 try {
                     if (xhr.status >= 200 && xhr.status < 300) {
                         var ct = xhr.getResponseHeader('content-type') || '';

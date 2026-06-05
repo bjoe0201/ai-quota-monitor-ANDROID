@@ -81,7 +81,7 @@ fun defaultServices(): Map<String, ServiceConfig> = mapOf(
     "browser_claude_usage" to ServiceConfig(
         displayName = "Claude.ai",
         sourceKey = "claude_usage",
-        url = "https://claude.ai/settings/usage",
+        url = "https://claude.ai/new#settings/usage",
         loginUrl = "https://claude.ai/login",
     ),
     "browser_github_copilot" to ServiceConfig(

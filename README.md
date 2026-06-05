@@ -105,7 +105,7 @@
 
 | Service | Source Key | 資料來源頁面 |
 |---------|-----------|------------|
-| Claude.ai | `claude_usage` | claude.ai/settings/usage |
+| Claude.ai | `claude_usage` | claude.ai/new#settings/usage |
 | GitHub Copilot | `github_copilot` | github.com/settings/copilot/features + /settings/billing/budgets |
 | OpenAI | `openai_billing` | platform.openai.com/billing |
 | Claude API | `claude_billing` | platform.claude.com/settings/billing |

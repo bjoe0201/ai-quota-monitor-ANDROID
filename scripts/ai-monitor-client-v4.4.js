@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         AI Quota Monitor Client v4.4
 // @namespace    https://github.com/ai-quota-monitor
-// @version      4.4.2
+// @version      4.4.3
 // @description  v4.1 + OpenRouter 支援（API 攔截版，零 DOM 依賴）
 // @author       AI Quota Monitor
-// @updated      2026-05-27 — 新增 GitHub Billing Budgets 頁面支援（v4.4.2）
+// @updated      2026-06-05 — Claude.ai 新路由 /new#settings/usage 相容（v4.4.3）
 // @match        https://platform.openai.com/settings/organization/billing/overview*
 // @match        https://claude.ai/settings/usage*
+// @match        https://claude.ai/new*
 // @match        https://platform.claude.com/settings/billing*
 // @match        https://github.com/settings/copilot/features*
 // @match        https://github.com/settings/billing/budgets*
@@ -38,8 +39,9 @@
         'claude.ai': {
             key: 'claude_usage',
             label: 'Claude Usage',
-            expectedPath: '/settings/usage',
-            refreshInterval: 1 * 60 * 1000,   // 3 分鐘
+            expectedPath: ['/settings/usage', '/new'],
+            expectedHash: 'settings/usage',
+            refreshInterval: 1 * 60 * 1000,
         },
         'platform.claude.com': {
             key: 'claude_billing',
@@ -66,7 +68,13 @@
 
     function isOnExpectedPage() {
         const paths = Array.isArray(PAGE.expectedPath) ? PAGE.expectedPath : [PAGE.expectedPath];
-        return paths.some(p => location.pathname.startsWith(p));
+        const pathMatch = paths.some(p => location.pathname.startsWith(p));
+        if (!pathMatch) return false;
+        if (PAGE.expectedHash && location.pathname === '/new') {
+            const hash = location.hash.replace(/^#/, '');
+            return hash.startsWith(PAGE.expectedHash);
+        }
+        return true;
     }
 
     // ─────────────────────────────────────────────
@@ -981,6 +989,7 @@
         }
 
         win.fetch = function (...args) {
+            if (!isOnExpectedPage()) return _realFetch.apply(this, args);
             let url;
             try {
                 url = args[0] instanceof Request ? args[0].url : String(args[0]);
@@ -1140,6 +1149,11 @@
             // 但清空 pending / 重置 UI 狀態
             interceptCount = 0;
             setStatus('listening');
+            if (isOnExpectedPage() && PAGE.key === 'claude_usage' && !_dot) {
+                buildUI();
+                setupPeriodicRefresh();
+                setupTimeoutWarning();
+            }
             if (isOnExpectedPage() && PAGE.key === 'github_copilot') {
                 if (_domObserver) { _domObserver.disconnect(); _domObserver = null; }
                 domParseSuccess = false;
@@ -1235,7 +1249,7 @@
     // ─────────────────────────────────────────────
 
     // Phase 1: 在 document-start 立刻安裝 hook（此時 DOM 未就緒）
-    dbg('=== AI Quota Monitor v4.4.2 啟動 ===');
+    dbg('=== AI Quota Monitor v4.4.3 啟動 ===');
     dbg('頁面:', PAGE.label, '(' + PAGE.key + ')');
     dbg('規則數:', activeRules.length);
 

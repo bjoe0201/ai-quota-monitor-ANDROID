@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.9 (2026-06-05)
+
+### Bug Fixes — Claude.ai 新路由相容
+
+- **修復 Claude.ai 用量資料無法載入** — Anthropic 將 Usage 頁面路由從 `/settings/usage` 遷移至 `/new#settings/usage`（SPA hash routing），更新 WebView 載入 URL 以跟進新路由
+- **新增 `isClaudeOnUsagePage()` 守衛** — Android WebView 注入腳本（`ai-monitor-android.js`）新增 SPA hash 檢查，避免在 claude.ai 聊天頁面攔截 streaming fetch，防止 ERR_QUIC_PROTOCOL_ERROR
+- **Tampermonkey 腳本升至 v4.4.3** — 新增 `@match https://claude.ai/new*`，`isOnExpectedPage()` 加入 hash 判斷，SPA 導航偵測補建 UI；fetch hook 加入早期退出守衛
+
+---
+
 ## v1.8 (2026-05-27)
 
 ### Features — GitHub Copilot 預算監控
