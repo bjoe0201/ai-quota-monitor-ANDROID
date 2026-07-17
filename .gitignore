@@ -21,6 +21,7 @@ build/
 
 # Local configuration (contains SDK path)
 local.properties
+.claude/settings.local.json
 
 # IntelliJ IDEA / Android Studio
 .idea/
