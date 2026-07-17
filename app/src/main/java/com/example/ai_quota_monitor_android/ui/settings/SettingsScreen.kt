@@ -326,7 +326,7 @@ fun SettingsScreen(
             // ── About ──────────────────────────────────────────────────────
             SectionTitle("關於")
             SettingsCard {
-                KvSettingsRow("版本", "1.7")
+                KvSettingsRow("版本", "2.0")
                 HorizontalDivider(color = colors.Border)
                 KvSettingsRow("資料來源", "WebView + HTTP Server")
             }

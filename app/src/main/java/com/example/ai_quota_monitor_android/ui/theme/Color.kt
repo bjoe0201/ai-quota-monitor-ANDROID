@@ -87,6 +87,7 @@ object ServiceAccents {
         "browser_claude_billing" to Color(0xFFC084FC),
         "browser_github_copilot" to Color(0xFF34D399),
         "browser_openrouter" to Color(0xFF818CF8),
+        "browser_chatgpt_usage" to Color(0xFF10A37F),
     )
 
     fun get(serviceKey: String): Color = map[serviceKey] ?: Color(0xFF60A5FA)

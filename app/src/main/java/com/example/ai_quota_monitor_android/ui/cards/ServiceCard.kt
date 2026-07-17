@@ -255,6 +255,7 @@ private fun glyphFor(key: String): String = when (key) {
     "browser_claude_billing" -> "API"
     "browser_github_copilot" -> "GH"
     "browser_openrouter" -> "OR"
+    "browser_chatgpt_usage" -> "GPT"
     else -> "\u00b7"
 }
 
@@ -282,6 +283,7 @@ private fun formatData(serviceKey: String, data: Map<String, Any?>, colors: AppC
         "browser_claude_billing" -> formatClaudeBilling(data, rows, colors)
         "browser_github_copilot" -> formatGitHubCopilot(data, rows, colors)
         "browser_openrouter" -> formatOpenRouter(data, rows, colors)
+        "browser_chatgpt_usage" -> formatChatGptUsage(data, rows, colors)
     }
 
     if (rows.isEmpty() || (rows.size == 1 && rows[0] is CardRow.Kv && (rows[0] as CardRow.Kv).value.isEmpty())) {
@@ -436,6 +438,27 @@ private fun formatOpenRouter(data: Map<String, Any?>, rows: MutableList<CardRow>
     val modelVal = data["top_model"]?.toString()?.take(20) ?: ""
     if (tokensVal.isNotEmpty() || modelVal.isNotEmpty()) {
         rows.add(CardRow.Pair("Tokens", tokensVal, "常用模型", modelVal))
+    }
+}
+
+private fun formatChatGptUsage(data: Map<String, Any?>, rows: MutableList<CardRow>, colors: AppColorSet) {
+    data.num("weekly_remaining_percent")?.toFloat()?.let { remaining ->
+        val remainingColor = when {
+            remaining <= 10f -> colors.Error
+            remaining <= 25f -> colors.Warning
+            else -> colors.Success
+        }
+        rows.add(CardRow.Bar(
+            label = "每週剩餘額度",
+            percent = remaining.coerceIn(0f, 100f),
+            color = remainingColor,
+        ))
+    }
+    data["weekly_reset"]?.toString()?.takeIf { it.isNotEmpty() }?.let {
+        rows.add(CardRow.Kv("下次重設時間", it, colors.Violet))
+    }
+    data.num("credits")?.let {
+        rows.add(CardRow.Kv("點數", "%,.0f 點".format(it), colors.Info))
     }
 }
 

@@ -3,6 +3,7 @@ package com.example.ai_quota_monitor_android.data.repository
 import android.content.Context
 import com.example.ai_quota_monitor_android.data.model.AuthStatus
 import com.example.ai_quota_monitor_android.data.model.DashboardConfig
+import com.example.ai_quota_monitor_android.data.model.defaultServices
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,8 +30,15 @@ class ConfigRepository(private val context: Context) {
         } catch (_: Exception) {
             DashboardConfig()
         }
-        _config.value = loaded
-        return loaded
+        // Preserve user settings while adding newly introduced services on upgrade.
+        val defaults = defaultServices()
+        val mergedServices = defaults + loaded.services
+        val mergedOrder = (loaded.serviceOrder + defaults.keys).distinct()
+            .filter { it in mergedServices }
+        val merged = loaded.copy(services = mergedServices, serviceOrder = mergedOrder)
+        _config.value = merged
+        if (merged != loaded) save()
+        return merged
     }
 
     fun save(config: DashboardConfig? = null) {

@@ -97,7 +97,11 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
 
-            for ((key, svc) in config.services) {
+            // Start collectors in the same order as cards are displayed in Settings/Dashboard.
+            // Disabled cards must not consume a background WebView.
+            for (key in config.effectiveServiceOrder()) {
+                val svc = config.services[key] ?: continue
+                if (!svc.enabled) continue
                 val auth = config.authStatus[key]
                 if (auth?.loggedIn == true && svc.url.isNotEmpty()) {
                     collector!!.loadService(key, svc.url)

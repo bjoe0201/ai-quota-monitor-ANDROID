@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.0 (2026-07-17)
+
+### Features — ChatGPT 額度監控
+
+- **新增 ChatGPT Usage Card** — 以單一進度條顯示每週剩餘額度，並顯示完整的下次重設日期與時間
+- **新增 ChatGPT 服務帳號登入** — 可從 App 的「設定 → 服務帳號」登入 ChatGPT，並重用持久化 Cookie 進行背景更新
+- **新增 ChatGPT Usage DOM 擷取器** — 從 `chatgpt.com/#settings/Usage` 擷取每週額度與可用點數
+- **既有安裝自動升級設定** — 啟動時自動將新服務合併至既有 `config.json`，保留原有服務設定與排列順序
+- **背景服務依 Card 順序啟動** — WebView Collector 依使用者設定的 Card 排列順序啟動，停用的 Card 不再建立背景 WebView
+
+### Documentation
+
+- 更新 README 的監控服務清單與 ChatGPT 使用教學
+- 更新 CLAUDE.md / AGENTS.md 的架構、服務清單與版本資訊
+
+---
+
 ## v1.9 (2026-06-05)
 
 ### Bug Fixes — Claude.ai 新路由相容

@@ -59,6 +59,12 @@ class BrowserOpenRouterService : BaseService() {
     override fun fetch() = fetchBrowserData(name, sourceKey)
 }
 
+class BrowserChatGptUsageService : BaseService() {
+    override val name = "ChatGPT 用量 (瀏覽器)"
+    override val sourceKey = "chatgpt_usage"
+    override fun fetch() = fetchBrowserData(name, sourceKey)
+}
+
 private fun fetchBrowserData(serviceName: String, sourceKey: String): ServiceResult {
     val raw = DataStoreRepository.getData(sourceKey)
         ?: return ServiceResult(
@@ -82,6 +88,7 @@ val ALL_BROWSER_SERVICES: List<Pair<String, BaseService>> = listOf(
     "browser_openai" to BrowserOpenAIService(),
     "browser_claude_billing" to BrowserClaudeBillingService(),
     "browser_openrouter" to BrowserOpenRouterService(),
+    "browser_chatgpt_usage" to BrowserChatGptUsageService(),
 )
 
 /** Maps service key to DATA_STORE source key. */
@@ -91,4 +98,5 @@ val BROWSER_SERVICE_SOURCES: Map<String, String> = mapOf(
     "browser_openai" to "openai_billing",
     "browser_claude_billing" to "claude_billing",
     "browser_openrouter" to "openrouter",
+    "browser_chatgpt_usage" to "chatgpt_usage",
 )

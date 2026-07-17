@@ -16,6 +16,7 @@
         'platform.claude.com':    { key: 'claude_billing', label: 'Claude Billing' },
         'github.com':             { key: 'github_copilot', label: 'Copilot' },
         'openrouter.ai':          { key: 'openrouter',     label: 'OpenRouter' },
+        'chatgpt.com':             { key: 'chatgpt_usage',  label: 'ChatGPT Usage' },
     };
 
     const PAGE = PAGE_MAP[location.hostname];
@@ -240,6 +241,53 @@
     }
 
     // ── OpenRouter DOM parsing ───────────────────────
+
+    if (PAGE.key === 'chatgpt_usage') {
+        function parseChatGptUsage() {
+            var fields = {};
+            var nodes = document.querySelectorAll('div, span');
+            for (var i = 0; i < nodes.length; i++) {
+                var text = (nodes[i].textContent || '').trim();
+                var remaining = text.match(/(?:剩餘|remaining)\s*(\d+(?:\.\d+)?)\s*%/i);
+                if (remaining && text.length < 80) {
+                    fields.weekly_remaining_percent = parseFloat(remaining[1]);
+                }
+                // Match the actual timestamp row, e.g. "於 2026年7月23日 下午2:28 重設".
+                // Do not accept headings such as "使用量限制重設".
+                if ((/^於\s*.+\s*重設$/.test(text) || /^resets?\s+.+$/i.test(text)) && text.length < 100) {
+                    fields.weekly_reset = text;
+                }
+                var credits = text.match(/^(\d[\d,]*)\s*(?:點數|credits?)$/i);
+                if (credits) fields.credits = parseFloat(credits[1].replace(/,/g, ''));
+            }
+            if (fields.weekly_remaining_percent === undefined) {
+                var bars = document.querySelectorAll('[style*="width"]');
+                for (var j = 0; j < bars.length; j++) {
+                    var width = (bars[j].style && bars[j].style.width) || '';
+                    var pct = width.match(/^(\d+(?:\.\d+)?)%$/);
+                    var parentText = (bars[j].parentElement && bars[j].parentElement.parentElement
+                        ? bars[j].parentElement.parentElement.textContent : '') || '';
+                    if (pct && /每週用量上限|weekly usage/i.test(parentText)) {
+                        fields.weekly_remaining_percent = parseFloat(pct[1]);
+                        break;
+                    }
+                }
+            }
+            if (fields.weekly_remaining_percent === undefined) return false;
+            merge('chatgpt_usage', fields);
+            return true;
+        }
+
+        setTimeout(function () {
+            if (!parseChatGptUsage()) {
+                var usageObserver = new MutationObserver(function () {
+                    if (parseChatGptUsage()) usageObserver.disconnect();
+                });
+                usageObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+                setTimeout(function () { usageObserver.disconnect(); }, 30000);
+            }
+        }, 2000);
+    }
 
     if (PAGE.key === 'openrouter') {
         function parseOpenRouterCredits() {

@@ -73,6 +73,7 @@ fun defaultSections(): List<SectionConfig> = listOf(
             CardConfig(type = "service", id = "c3", serviceKey = "browser_openai", span = 1),
             CardConfig(type = "service", id = "c4", serviceKey = "browser_openrouter", span = 1),
             CardConfig(type = "service", id = "c5", serviceKey = "browser_claude_billing", span = 2),
+            CardConfig(type = "service", id = "c6", serviceKey = "browser_chatgpt_usage", span = 2),
         ),
     ),
 )
@@ -107,6 +108,12 @@ fun defaultServices(): Map<String, ServiceConfig> = mapOf(
         sourceKey = "openrouter",
         url = "https://openrouter.ai/settings/credits",
         loginUrl = "https://openrouter.ai",
+    ),
+    "browser_chatgpt_usage" to ServiceConfig(
+        displayName = "ChatGPT",
+        sourceKey = "chatgpt_usage",
+        url = "https://chatgpt.com/#settings/Usage",
+        loginUrl = "https://chatgpt.com/auth/login",
     ),
 )
 

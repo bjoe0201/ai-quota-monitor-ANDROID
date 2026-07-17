@@ -151,6 +151,7 @@ class WebViewDataCollector(private val context: Context) {
         "browser_openai" -> "platform.openai.com"
         "browser_claude_billing" -> "platform.claude.com"
         "browser_openrouter" -> "openrouter.ai"
+        "browser_chatgpt_usage" -> "chatgpt.com"
         else -> ""
     }
 

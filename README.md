@@ -6,7 +6,7 @@
 
 <p align="center">
   一鍵掌握所有 AI 服務餘額，隨時掌握用量不超支<br>
-  Monitor your AI service quotas at a glance — Claude, OpenAI, GitHub Copilot & OpenRouter
+  Monitor your AI service quotas at a glance — ChatGPT, Claude, OpenAI, GitHub Copilot & OpenRouter
 </p>
 
 <p align="center">
@@ -53,13 +53,14 @@
 
 | 功能 | 說明 |
 |------|------|
-| 🔍 **5 大 AI 服務監控** | Claude.ai、GitHub Copilot、OpenAI、Claude API、OpenRouter |
+| 🔍 **6 大 AI 服務監控** | ChatGPT、Claude.ai、GitHub Copilot、OpenAI、Claude API、OpenRouter |
 | 🃏 **卡片式儀表板** | Home Assistant 風格，支援多欄佈局，可展開 / 收合，狀態持久化 |
 | 🌐 **雙資料來源** | ① App 內 WebView + JS 注入（背景自動刷新）② PC 端 Tampermonkey 腳本推送 (port 7890) |
 | 🕐 **翻頁時鐘** | 仿機械翻頁風格的即時時鐘卡片 |
 | 🌑 **深色主題** | Linear / Raycast 風格深色配色，每個服務有專屬強調色 |
 | 🍪 **Cookie 持久化** | 登入一次即可，重啟 App 免重新登入 |
 | 🔔 **登入偵測** | 偵測 session 過期或 Google SSO 限制，即時提示重新登入 |
+| ↕️ **依 Card 排序啟動** | 背景監控依設定中的 Card 順序啟動；停用 Card 不建立背景 WebView |
 
 ---
 
@@ -74,6 +75,15 @@
 進入 **設定 → 服務帳號**，依序對需要監控的服務點選「登入」，在內建 WebView 完成帳號登入後返回即可。
 
 > **Claude API (platform.claude.com)** 使用 Google SSO 登入，Google 會封鎖 App 內 WebView。請改用頁面下方的 **Email 登入**，或使用 PC 端 Tampermonkey 腳本推送。
+
+#### ChatGPT 使用教學
+
+1. 在 **設定 → 服務帳號 → ChatGPT** 點選「登入」。
+2. 於內建 WebView 完成 ChatGPT 登入，確認已進入 ChatGPT 後按右上角勾勾完成。
+3. App 會在背景開啟 `chatgpt.com/#settings/Usage`，擷取每週剩餘額度與重設時間。
+4. 返回儀表板即可查看 ChatGPT Card；若方案提供點數資訊，Card 也會一併顯示。
+
+> ChatGPT Usage 頁面及欄位會依帳號方案而異；沒有 Usage 權限的帳號可能不會產生額度資料。
 
 ### 3. 查看儀表板
 
@@ -110,6 +120,7 @@
 | OpenAI | `openai_billing` | platform.openai.com/billing |
 | Claude API | `claude_billing` | platform.claude.com/settings/billing |
 | OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
+| ChatGPT | `chatgpt_usage` | chatgpt.com/#settings/Usage |
 
 ---
 
