@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 HIGHEST PRIORITY — PUBLIC REPOSITORY SECURITY / 最高優先級
+
+**This is a public GitHub repository. These rules override every other project workflow and must be checked before every commit, push, tag, GitHub Release, or uploaded artifact.**
+
+- Never commit, push, tag, release, print, or otherwise expose secrets or private data. This includes API keys, access/refresh tokens, passwords, cookies, session data, credentials, private keys, signing keys, keystores, certificates with private material, personal identifiers, and private URLs.
+- Never upload local-only configuration or machine/user state, including `keystore.properties`, `local.properties`, `.env*`, `.claude/settings.local.json`, IDE metadata/state, logs, caches, temporary files, or files containing absolute local paths.
+- Never upload `*.jks`, `*.keystore`, `*.p12`, `*.pfx`, `*.pem`, private-key files, debug APKs, unsigned APKs, or artifacts signed with the Android Debug certificate.
+- Before staging or publishing, inspect the exact file list and diff. Stage only explicit intended paths; do not use broad staging when unrelated or local files exist.
+- Before every push/tag/Release, verify ignore rules, scan the current tree and relevant history for sensitive filenames/content, and inspect every Release asset. A deleted file is still public if it remains in Git history or an old tag.
+- Release assets for this Android project must contain only the verified, signed release APK unless the repository later adds another documented product target.
+- Never reveal secret values in terminal output, logs, commit messages, documentation, screenshots, release notes, or assistant responses. Redact findings and report only the affected path and risk type.
+- If there is any uncertainty whether a file or value is safe for a public repository, **stop publication and treat it as private until verified**.
+- If exposure is suspected, stop further publishing, remove the material from the current tree and Release assets, audit Git history/tags, rotate affected credentials, and rewrite history when required.
+
 ## Project Overview
 
 Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) — a desktop widget that monitors AI service quotas (OpenAI, Claude, GitHub Copilot, OpenRouter). The original is Python + tkinter; this project rebuilds it as a native Android app with Kotlin + Jetpack Compose.
