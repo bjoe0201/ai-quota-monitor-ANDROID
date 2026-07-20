@@ -329,7 +329,15 @@ private fun formatClaudeUsage(data: Map<String, Any?>, rows: MutableList<CardRow
     data.num("weekly_percent")?.toFloat()?.let { pct ->
         val reset = data["weekly_reset"]?.toString()?.takeIf { it.isNotEmpty() }
         rows.add(CardRow.Bar(
-            label = "每週限額", percent = pct, color = pctColor(pct),
+            label = "每週限額（全部模型）", percent = pct, color = pctColor(pct),
+            resetText = reset,
+        ))
+    }
+    data.num("fable_percent")?.toFloat()?.let { pct ->
+        val reset = data["fable_reset"]?.toString()?.takeIf { it.isNotEmpty() }
+        val name = data["fable_name"]?.toString()?.takeIf { it.isNotEmpty() } ?: "Fable"
+        rows.add(CardRow.Bar(
+            label = "$name 週限額", percent = pct, color = pctColor(pct),
             resetText = reset,
         ))
     }

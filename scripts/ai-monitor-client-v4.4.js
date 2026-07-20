@@ -212,6 +212,41 @@
             }
         }
 
+        // ====== 新版 `limits` 陣列（2026-07）======
+        // session / weekly_all / weekly_scoped（單一模型，例如 Fable）
+        // 頂層 five_hour/seven_day 優先；limits 補齊缺漏並新增 scoped 模型。
+        if (Array.isArray(json.limits)) {
+            for (const lim of json.limits) {
+                if (!lim || typeof lim !== 'object') continue;
+                const lpct = (lim.percent !== undefined) ? Math.round(lim.percent) : undefined;
+                let lreset;
+                if (lim.resets_at) {
+                    const lms = new Date(lim.resets_at) - Date.now();
+                    if (lms > 0) {
+                        if (lim.kind === 'session' || lim.group === 'session') {
+                            const lmins = Math.ceil(lms / 60000);
+                            lreset = lmins >= 60 ? `${Math.floor(lmins / 60)} hrs ${lmins % 60} mins` : `${lmins} mins`;
+                        } else {
+                            const ldays = Math.ceil(lms / 86400000);
+                            const lhrs = Math.ceil((lms % 86400000) / 3600000);
+                            lreset = ldays > 0 ? `${ldays} days ${lhrs} hrs` : `${lhrs} hrs`;
+                        }
+                    }
+                }
+                if (lim.kind === 'session' || lim.group === 'session') {
+                    if (lpct !== undefined && d.session_percent === undefined) d.session_percent = lpct;
+                    if (lreset && d.session_reset === undefined) d.session_reset = lreset;
+                } else if (lim.kind === 'weekly_all') {
+                    if (lpct !== undefined && d.weekly_percent === undefined) d.weekly_percent = lpct;
+                    if (lreset && d.weekly_reset === undefined) d.weekly_reset = lreset;
+                } else if (lim.kind === 'weekly_scoped' && lim.scope && lim.scope.model) {
+                    if (lpct !== undefined) d.fable_percent = lpct;
+                    if (lreset) d.fable_reset = lreset;
+                    if (lim.scope.model.display_name) d.fable_name = lim.scope.model.display_name;
+                }
+            }
+        }
+
         // Extra usage (overage) — API 值為 cents，需 ÷100 轉 USD
         const ex = json.extra_usage || json.extra || json.overages;
         if (ex && typeof ex === 'object') {

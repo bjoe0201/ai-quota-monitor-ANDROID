@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.1 (2026-07-21)
+
+### Features — Claude.ai Fable 週限額
+
+- **Claude.ai 卡片新增 Fable 週限額進度條** — Anthropic 於 usage API 新增 `limits` 陣列，將每週額度拆分為「全部模型」（`weekly_all`）與單一模型 scoped 限額（`weekly_scoped`，例如 Fable）。卡片現在於「每週限額（全部模型）」下方額外顯示 Fable 週用量與重設時間
+- **動態模型名稱** — Fable 進度條標籤取自 API 回傳的 `scope.model.display_name`，未來若 scoped 模型更名或替換可自動跟進
+- **前向相容 `limits` 解析** — 注入腳本改為在頂層 `five_hour` / `seven_day` 之外，另行解析 `limits` 陣列補齊 session / weekly 並新增 scoped 模型；舊格式仍優先，沒有 scoped 限額的帳號不會顯示多餘進度條
+- **PC 端 Tampermonkey 腳本同步** — `scripts/ai-monitor-client-v4.4.js` 加入相同的 `limits` 解析邏輯，PC 推送與 App 內 WebView 行為一致
+
+### Documentation
+
+- 更新 README 的 Claude.ai 使用教學（Fable / 全部模型週限額說明）
+- 更新 CLAUDE.md / AGENTS.md 的版本資訊與 Claude.ai 資料來源說明
+
+---
+
 ## v2.0 (2026-07-17)
 
 ### Features — ChatGPT 額度監控

@@ -90,6 +90,40 @@
                 }
             }
         }
+        // New `limits` array (2026-07): session / weekly_all / weekly_scoped (per-model, e.g. Fable).
+        // Top-level five_hour/seven_day take precedence; limits fill gaps and add scoped models.
+        if (Array.isArray(json.limits)) {
+            for (var li = 0; li < json.limits.length; li++) {
+                var lim = json.limits[li];
+                if (!lim || typeof lim !== 'object') continue;
+                var lpct = (lim.percent !== undefined) ? Math.round(lim.percent) : undefined;
+                var lreset;
+                if (lim.resets_at) {
+                    var lms = new Date(lim.resets_at) - Date.now();
+                    if (lms > 0) {
+                        if (lim.kind === 'session' || lim.group === 'session') {
+                            var lmins = Math.ceil(lms / 60000);
+                            lreset = lmins >= 60 ? Math.floor(lmins / 60) + ' hrs ' + (lmins % 60) + ' mins' : lmins + ' mins';
+                        } else {
+                            var ldays = Math.ceil(lms / 86400000);
+                            var lhrs = Math.ceil((lms % 86400000) / 3600000);
+                            lreset = ldays > 0 ? ldays + ' days ' + lhrs + ' hrs' : lhrs + ' hrs';
+                        }
+                    }
+                }
+                if (lim.kind === 'session' || lim.group === 'session') {
+                    if (lpct !== undefined && d.session_percent === undefined) d.session_percent = lpct;
+                    if (lreset && d.session_reset === undefined) d.session_reset = lreset;
+                } else if (lim.kind === 'weekly_all') {
+                    if (lpct !== undefined && d.weekly_percent === undefined) d.weekly_percent = lpct;
+                    if (lreset && d.weekly_reset === undefined) d.weekly_reset = lreset;
+                } else if (lim.kind === 'weekly_scoped' && lim.scope && lim.scope.model) {
+                    if (lpct !== undefined) d.fable_percent = lpct;
+                    if (lreset) d.fable_reset = lreset;
+                    if (lim.scope.model.display_name) d.fable_name = lim.scope.model.display_name;
+                }
+            }
+        }
         var ex = json.extra_usage || json.extra || json.overages;
         if (ex && typeof ex === 'object') {
             d.extra_enabled = !!(ex.is_enabled !== undefined ? ex.is_enabled : true);

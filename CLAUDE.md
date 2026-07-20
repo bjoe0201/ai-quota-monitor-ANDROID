@@ -200,12 +200,14 @@ All AI service pages require user login. Users authenticate once via full-screen
 
 | Service | source_key | Data Source URL |
 |---------|-----------|-----------------|
-| Claude.ai | `claude_usage` | claude.ai/settings/usage |
+| Claude.ai | `claude_usage` | claude.ai/new#settings/usage |
 | GitHub Copilot | `github_copilot` | github.com/settings/billing |
 | OpenAI | `openai_billing` | platform.openai.com/billing |
 | Claude API | `claude_billing` | platform.claude.com/settings/billing |
 | OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
 | ChatGPT | `chatgpt_usage` | chatgpt.com/#settings/Usage |
+
+> **Claude.ai usage API (`/api/organizations/{org}/usage`)**: In addition to the legacy top-level `five_hour` (session) and `seven_day` (weekly "All models") objects, the API now returns a `limits` array. Entries are keyed by `kind`: `session`, `weekly_all`, and `weekly_scoped` (per-model, e.g. Fable, with the model name in `scope.model.display_name`). `transformClaudeUsage` parses the `limits` array to emit `fable_percent` / `fable_reset` / `fable_name`; top-level objects still take precedence for session/weekly, and `limits` only fills gaps and adds scoped-model rows.
 
 ### Card System (Home Assistant style)
 
@@ -218,7 +220,7 @@ Dashboard is divided into configurable **Sections**, each containing **Cards**. 
 
 ### Key Versions
 
-- **App version: 2.0** (versionCode 11)
+- **App version: 2.1** (versionCode 12)
 - AGP: 9.1.1 | Kotlin: 2.2.10 | Compose BOM: 2026.02.01
 - `minSdk = 31`, `targetSdk = 36`
 - Dependencies managed via `gradle/libs.versions.toml` (version catalog)

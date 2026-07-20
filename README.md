@@ -76,6 +76,18 @@
 
 > **Claude API (platform.claude.com)** 使用 Google SSO 登入，Google 會封鎖 App 內 WebView。請改用頁面下方的 **Email 登入**，或使用 PC 端 Tampermonkey 腳本推送。
 
+#### Claude.ai 使用教學
+
+1. 在 **設定 → 服務帳號 → Claude.ai** 點選「登入」，於內建 WebView 完成登入。
+2. App 會在背景開啟 `claude.ai/new#settings/usage`，擷取用量資料。
+3. Claude.ai Card 依方案顯示多條進度條：
+   - **本次工作階段** — 5 小時滾動額度與重設倒數
+   - **每週限額（全部模型）** — 每週全模型合計用量
+   - **Fable 週限額** — 若方案含單一模型（例如 Fable）的獨立週額度，會額外顯示該模型用量；標籤取自 API 回傳的模型名稱，未來換模型可自動跟進
+   - **額外用量** — 若已開啟 usage credits，顯示已花費 / 上限與餘額
+
+> 進度條會依帳號方案而異；沒有單一模型週限額的帳號不會顯示 Fable 進度條。
+
 #### ChatGPT 使用教學
 
 1. 在 **設定 → 服務帳號 → ChatGPT** 點選「登入」。
