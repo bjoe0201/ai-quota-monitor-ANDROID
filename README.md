@@ -53,7 +53,7 @@
 
 | 功能 | 說明 |
 |------|------|
-| 🔍 **6 大 AI 服務監控** | ChatGPT、Claude.ai、GitHub Copilot、OpenAI、Claude API、OpenRouter |
+| 🔍 **6 大 AI 服務監控** | ChatGPT（Plus / Pro）、Claude.ai、GitHub Copilot、OpenAI、Claude API、OpenRouter |
 | 🃏 **卡片式儀表板** | Home Assistant 風格，支援多欄佈局，可展開 / 收合，狀態持久化 |
 | 🌐 **雙資料來源** | ① App 內 WebView + JS 注入（背景自動刷新）② PC 端 Tampermonkey 腳本推送 (port 7890) |
 | 🕐 **翻頁時鐘** | 仿機械翻頁風格的即時時鐘卡片 |
@@ -92,10 +92,11 @@
 
 1. 在 **設定 → 服務帳號 → ChatGPT** 點選「登入」。
 2. 於內建 WebView 完成 ChatGPT 登入，確認已進入 ChatGPT 後按右上角勾勾完成。
-3. App 會在背景開啟 `chatgpt.com/#settings/Usage`，擷取每週剩餘額度與重設時間。
-4. 返回儀表板即可查看 ChatGPT Card；若方案提供點數資訊，Card 也會一併顯示。
+3. App 會在背景開啟 `chatgpt.com/#settings/Usage`，擷取每週剩餘額度與重設時間；Plus 的絕對日期與 Pro 的相對倒數格式皆支援。
+4. 返回儀表板即可查看 ChatGPT Card；若「使用量限制重設」區塊提供可用重置，Card 會依項目數量逐筆顯示帶框的到期資訊。
+5. 若方案提供點數資訊，Card 也會一併顯示。
 
-> ChatGPT Usage 頁面及欄位會依帳號方案而異；沒有 Usage 權限的帳號可能不會產生額度資料。
+> ChatGPT Usage 頁面及欄位會依帳號方案而異；沒有 Usage 權限或目前沒有可用「使用量限制重設」的帳號，不會顯示相應資料列。
 
 ### 3. 查看儀表板
 

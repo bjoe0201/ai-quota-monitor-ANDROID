@@ -207,6 +207,8 @@ All AI service pages require user login. Users authenticate once via full-screen
 | OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
 | ChatGPT | `chatgpt_usage` | chatgpt.com/#settings/Usage |
 
+> **ChatGPT Usage DOM**: Plus may show an absolute reset timestamp (for example, `於 2026年7月23日 下午2:28 重設`), while Pro may show a relative duration (for example, `6 天 6 小時 後重設`). Preserve both parsing paths. The optional 「使用量限制重設」 section may contain zero or more reset-expiry entries; emit `limit_reset_count` and numbered `limit_reset_N_expiry` fields so the Card renders one boxed row per available reset.
+
 > **Claude.ai usage API (`/api/organizations/{org}/usage`)**: In addition to the legacy top-level `five_hour` (session) and `seven_day` (weekly "All models") objects, the API now returns a `limits` array. Entries are keyed by `kind`: `session`, `weekly_all`, and `weekly_scoped` (per-model, e.g. Fable, with the model name in `scope.model.display_name`). `transformClaudeUsage` parses the `limits` array to emit `fable_percent` / `fable_reset` / `fable_name`; top-level objects still take precedence for session/weekly, and `limits` only fills gaps and adds scoped-model rows.
 
 ### Card System (Home Assistant style)
@@ -220,7 +222,7 @@ Dashboard is divided into configurable **Sections**, each containing **Cards**. 
 
 ### Key Versions
 
-- **App version: 2.1** (versionCode 12)
+- **App version: 2.2** (versionCode 13)
 - AGP: 9.1.1 | Kotlin: 2.2.10 | Compose BOM: 2026.02.01
 - `minSdk = 31`, `targetSdk = 36`
 - Dependencies managed via `gradle/libs.versions.toml` (version catalog)

@@ -65,6 +65,11 @@ private sealed class CardRow {
         val rightValue: String = "",
     ) : CardRow()
 
+    data class ResetExpiry(
+        val label: String,
+        val expiry: String,
+    ) : CardRow()
+
     data class Divider(val label: String) : CardRow()
 }
 
@@ -225,6 +230,10 @@ private fun RenderRows(rows: List<CardRow>) {
                 rightLabel = row.rightLabel,
                 rightValue = row.rightValue,
                 showDivider = !isLast,
+            )
+            is CardRow.ResetExpiry -> ResetExpiryRow(
+                label = row.label,
+                expiry = row.expiry,
             )
             is CardRow.Divider -> {
                 HorizontalDivider(
@@ -464,6 +473,15 @@ private fun formatChatGptUsage(data: Map<String, Any?>, rows: MutableList<CardRo
     }
     data["weekly_reset"]?.toString()?.takeIf { it.isNotEmpty() }?.let {
         rows.add(CardRow.Kv("下次重設時間", it, colors.Violet))
+    }
+    val limitResetCount = data.num("limit_reset_count")?.toInt()?.coerceIn(0, 20) ?: 0
+    repeat(limitResetCount) { index ->
+        data["limit_reset_${index + 1}_expiry"]?.toString()?.takeIf { it.isNotEmpty() }?.let { expiry ->
+            rows.add(CardRow.ResetExpiry(
+                label = if (limitResetCount == 1) "使用量限制重設" else "使用量限制重設 ${index + 1}",
+                expiry = expiry,
+            ))
+        }
     }
     data.num("credits")?.let {
         rows.add(CardRow.Kv("點數", "%,.0f 點".format(it), colors.Info))

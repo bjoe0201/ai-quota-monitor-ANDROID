@@ -277,8 +277,53 @@
     // ── OpenRouter DOM parsing ───────────────────────
 
     if (PAGE.key === 'chatgpt_usage') {
+        function findChatGptLimitResetExpiries() {
+            var headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            var resetSection = null;
+            for (var h = 0; h < headings.length; h++) {
+                var headingText = (headings[h].textContent || '').trim();
+                if (/^(?:使用量限制重設|usage limit resets?)$/i.test(headingText)) {
+                    if (headings[h].closest) resetSection = headings[h].closest('section');
+                    if (!resetSection) {
+                        var ancestor = headings[h].parentElement;
+                        while (ancestor && ancestor.tagName !== 'SECTION') ancestor = ancestor.parentElement;
+                        resetSection = ancestor;
+                    }
+                    break;
+                }
+            }
+            if (!resetSection) return null;
+
+            var sectionText = resetSection.innerText || resetSection.textContent || '';
+            if (/目前沒有可用的使用量限制重設|no usage limit resets? (?:are )?available/i.test(sectionText)) {
+                return [];
+            }
+
+            var lines = sectionText.split(/\r?\n/).map(function (line) {
+                return line.replace(/\s+/g, ' ').trim();
+            }).filter(Boolean);
+            var expiries = [];
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var expiryLabelOnly = /^(?:到期日|到期時間|有效期限|expiration|expires?|valid until)[:：]?$/i.test(line);
+                if (expiryLabelOnly && lines[i + 1]) {
+                    expiries.push(line + ' ' + lines[++i]);
+                } else if (/(?:到期(?:日|時間)?|有效期限|失效|expires?|expiration|valid until)/i.test(line)) {
+                    expiries.push(line);
+                }
+            }
+            return expiries;
+        }
+
         function parseChatGptUsage() {
             var fields = {};
+            var limitResetExpiries = findChatGptLimitResetExpiries();
+            if (limitResetExpiries !== null) {
+                fields.limit_reset_count = limitResetExpiries.length;
+                for (var r = 0; r < limitResetExpiries.length; r++) {
+                    fields['limit_reset_' + (r + 1) + '_expiry'] = limitResetExpiries[r];
+                }
+            }
             var nodes = document.querySelectorAll('div, span');
             for (var i = 0; i < nodes.length; i++) {
                 var text = (nodes[i].textContent || '').trim();
@@ -286,9 +331,13 @@
                 if (remaining && text.length < 80) {
                     fields.weekly_remaining_percent = parseFloat(remaining[1]);
                 }
-                // Match the actual timestamp row, e.g. "於 2026年7月23日 下午2:28 重設".
+                // Plus uses an absolute timestamp ("於 2026年7月23日 下午2:28 重設").
+                // Pro uses a relative duration ("6 天 6 小時 後重設").
                 // Do not accept headings such as "使用量限制重設".
-                if ((/^於\s*.+\s*重設$/.test(text) || /^resets?\s+.+$/i.test(text)) && text.length < 100) {
+                var isChineseAbsoluteReset = /^於\s*.+\s*重設$/.test(text);
+                var isChineseRelativeReset = /^(?:\d+\s*(?:天|日|小時|時|分鐘|分)\s*)+後重設$/.test(text);
+                var isEnglishReset = /^resets?\s+.+$/i.test(text);
+                if ((isChineseAbsoluteReset || isChineseRelativeReset || isEnglishReset) && text.length < 100) {
                     fields.weekly_reset = text;
                 }
                 var credits = text.match(/^(\d[\d,]*)\s*(?:點數|credits?)$/i);
@@ -309,7 +358,9 @@
             }
             if (fields.weekly_remaining_percent === undefined) return false;
             merge('chatgpt_usage', fields);
-            return true;
+            // ChatGPT can render the percentage before the reset text. Keep observing
+            // until both required weekly-limit values have appeared.
+            return fields.weekly_reset !== undefined && limitResetExpiries !== null;
         }
 
         setTimeout(function () {

@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.2 (2026-09-09)
+
+### Features — ChatGPT Pro 與使用量限制重設
+
+- **支援 ChatGPT Pro 週額度重設倒數** — 新增「6 天 6 小時 後重設」等中文相對時間格式，同時保留 ChatGPT Plus 的完整日期與英文重設時間解析方式
+- **顯示可用的使用量限制重設** — 從 ChatGPT Usage 頁面的「使用量限制重設」區塊擷取到期資訊；有幾筆可用重置，Card 就顯示幾筆
+- **重置到期日框** — 每筆可用重置以獨立紫色外框顯示到期文字，多筆項目會自動編號
+- **支援分段渲染** — 額度百分比、週重設時間與使用量限制重設區塊尚未全部載入時持續觀察 DOM，避免提早停止造成資料遺漏
+
+### Testing
+
+- 新增 ChatGPT Plus、Pro、Pro 分段渲染、零筆重置與多筆重置解析 fixture
+- Android JVM 單元測試與 JavaScript 注入腳本語法檢查通過
+
+### Documentation
+
+- 更新 README 的 ChatGPT 使用教學與方案相容說明
+- 更新 CLAUDE.md / AGENTS.md 的版本與 ChatGPT 資料格式說明
+
+---
+
 ## v2.1 (2026-07-21)
 
 ### Features — Claude.ai Fable 週限額
