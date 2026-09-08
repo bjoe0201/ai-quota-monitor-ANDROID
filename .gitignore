@@ -41,6 +41,9 @@ google-services.json
 .cxx
 *.hprof
 
+# Local release staging (verified artifacts are uploaded explicitly)
+/dist/
+
 # OS files
 .DS_Store
 Thumbs.db
