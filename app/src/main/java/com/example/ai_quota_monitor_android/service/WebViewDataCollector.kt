@@ -184,8 +184,9 @@ class WebViewDataCollector(private val context: Context) {
         val wv = webViews.remove(serviceKey) ?: return
         wv.stopLoading()
         wv.removeJavascriptInterface(BRIDGE_NAME)
-        wv.loadUrl("about:blank")
-        wv.clearHistory()
+        // No about:blank navigation first: loadUrl() is asynchronous, so destroying in the
+        // same breath means the navigation never commits. destroy() is what actually tears
+        // the document down; it does not promise the renderer returns the memory to the OS.
         wv.destroy()
     }
 

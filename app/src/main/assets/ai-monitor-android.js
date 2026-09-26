@@ -224,54 +224,87 @@
     }
 
     if (rule) {
-        // Intercept fetch
-        var origFetch = window.fetch;
-        window.fetch = function () {
-            // 早期退出：不在 Claude Usage 目標頁面時完全透通
-            if (PAGE.key === 'claude_usage' && !isClaudeOnUsagePage())
-                return origFetch.apply(this, arguments);
-            return origFetch.apply(this, arguments).then(function (resp) {
-                try {
-                    var url = (typeof arguments[0] === 'string') ? arguments[0] : (arguments[0] && arguments[0].url) || '';
-                    if (resp.ok && resp.headers.get('content-type') && resp.headers.get('content-type').indexOf('json') >= 0) {
-                        resp.clone().json().then(function (json) {
-                            var fields = rule.transform(url, json);
-                            if (fields && Object.keys(fields).length > 0) {
-                                merge(PAGE.key, fields);
-                            }
-                        }).catch(function () {});
-                    }
-                } catch (e) {}
-                return resp;
-            });
-        };
+        // The collector injects this script on both onPageStarted and onPageFinished, so a
+        // plain re-run would wrap fetch/XHR a second time and parse every response twice.
+        // State is kept on window so a later injection can tell "already installed" from
+        // "the page replaced window.fetch and we have to wrap it again".
+        var state = window.__aiMonitorState || (window.__aiMonitorState = {});
 
-        // Intercept XHR
-        var origOpen = XMLHttpRequest.prototype.open;
-        var origSend = XMLHttpRequest.prototype.send;
-        XMLHttpRequest.prototype.open = function (method, url) {
-            this._aimonUrl = url;
-            return origOpen.apply(this, arguments);
-        };
-        XMLHttpRequest.prototype.send = function () {
-            var xhr = this;
-            xhr.addEventListener('load', function () {
-                if (PAGE.key === 'claude_usage' && !isClaudeOnUsagePage()) return;
-                try {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        var ct = xhr.getResponseHeader('content-type') || '';
-                        if (ct.indexOf('json') >= 0) {
-                            var json = JSON.parse(xhr.responseText);
-                            var fields = rule.transform(xhr._aimonUrl || '', json);
-                            if (fields && Object.keys(fields).length > 0) {
-                                merge(PAGE.key, fields);
-                            }
+        // Only responses from the service's own host can carry its quota data. Without this
+        // every JSON response on the page — telemetry, feature flags, chat payloads — was
+        // cloned and parsed, and clone() buffers the whole body.
+        function isInteresting(url) {
+            if (!url) return false;
+            try {
+                return new URL(url, location.href).hostname.indexOf(rule.hostMatch) >= 0;
+            } catch (e) {
+                return url.indexOf(rule.hostMatch) >= 0;
+            }
+        }
+
+        function handleJson(url, json) {
+            try {
+                var fields = rule.transform(url, json);
+                if (fields && Object.keys(fields).length > 0) merge(PAGE.key, fields);
+            } catch (e) {}
+        }
+
+        // ── fetch ────────────────────────────────────
+        if (window.fetch !== state.fetchWrapper) {
+            var origFetch = window.fetch;
+            state.fetchWrapper = function () {
+                // 早期退出：不在 Claude Usage 目標頁面時完全透通
+                if (PAGE.key === 'claude_usage' && !isClaudeOnUsagePage())
+                    return origFetch.apply(this, arguments);
+                // Capture the request url here: inside the then() callback `arguments`
+                // belongs to that callback and holds the Response, not the fetch args.
+                var arg0 = arguments[0];
+                var reqUrl = (typeof arg0 === 'string') ? arg0 : (arg0 && arg0.url) || '';
+                return origFetch.apply(this, arguments).then(function (resp) {
+                    try {
+                        var url = reqUrl || resp.url || '';
+                        var ct = resp.headers.get('content-type') || '';
+                        if (resp.ok && ct.indexOf('json') >= 0 && isInteresting(url)) {
+                            resp.clone().json().then(function (json) {
+                                handleJson(url, json);
+                            }).catch(function () {});
                         }
-                    }
-                } catch (e) {}
-            });
-            return origSend.apply(this, arguments);
-        };
+                    } catch (e) {}
+                    return resp;
+                });
+            };
+            window.fetch = state.fetchWrapper;
+        }
+
+        // ── XHR ──────────────────────────────────────
+        if (XMLHttpRequest.prototype.open !== state.xhrOpenWrapper) {
+            var origOpen = XMLHttpRequest.prototype.open;
+            state.xhrOpenWrapper = function (method, url) {
+                this._aimonUrl = url;
+                return origOpen.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.open = state.xhrOpenWrapper;
+        }
+        if (XMLHttpRequest.prototype.send !== state.xhrSendWrapper) {
+            var origSend = XMLHttpRequest.prototype.send;
+            state.xhrSendWrapper = function () {
+                var xhr = this;
+                // { once: true }: send() is called again on a reused XHR object, and without
+                // this each call would leave another listener behind.
+                xhr.addEventListener('load', function () {
+                    if (PAGE.key === 'claude_usage' && !isClaudeOnUsagePage()) return;
+                    try {
+                        var url = xhr._aimonUrl || '';
+                        if (xhr.status >= 200 && xhr.status < 300 && isInteresting(url)) {
+                            var ct = xhr.getResponseHeader('content-type') || '';
+                            if (ct.indexOf('json') >= 0) handleJson(url, JSON.parse(xhr.responseText));
+                        }
+                    } catch (e) {}
+                }, { once: true });
+                return origSend.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = state.xhrSendWrapper;
+        }
     }
 
     // ── OpenRouter DOM parsing ───────────────────────

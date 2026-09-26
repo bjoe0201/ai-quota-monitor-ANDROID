@@ -16,7 +16,7 @@
 
 實機量測（Redmi 平板、4 GB RAM、3 輪完整收集週期、44 個樣本）：同時存活的頁面數從 5–6 降到 **1**（從未出現 2），renderer 峰值從 1.5–1.68 GB 降到 707–1,022 MB，renderer 死亡從每 6–7 分鐘一次降到量測期間 **0 次**，裝置可用記憶體從 408 MB 回到 1.0–1.4 GB，系統也不再為了騰出記憶體而終止其他 app。
 
-> 已知限制：renderer 記憶體仍會每輪累積約 150 MB 且 3 輪內未收斂，因此 A 目前是**延後**而非消除 OOM；renderer 死亡時 App 已能存活。根治方案與完整證據見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
+> 已知限制：renderer 記憶體仍會每輪累積約 **190 MB** 且五輪內未收斂，約 23 分鐘撞上 1.5 GB 後被系統終止（原本是每 6–7 分鐘）。App 能存活該次死亡、資料照常收集，使用者端表現正常，但累積本身尚未解決 — 目前是**延後**而非消除 OOM。後續追查方向與完整證據見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)，進行中的實驗與交接見 [`DEVELOP.md`](DEVELOP.md)。
 
 ### Features
 
