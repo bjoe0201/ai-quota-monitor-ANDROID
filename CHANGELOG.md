@@ -10,8 +10,11 @@
 - **背景頁面不再載入圖片** — 這些頁面只被解析、從不繪製，解碼後的圖片是純浪費
 - **登入狀態誤判防護** — 需連續 2 次偵測到登入頁才判定為登出，避免 token refresh、bot 檢查或慢速 SPA 中間態造成誤判（誤判會停掉該服務的背景收集直到手動重新登入）
 - **登入畫面 renderer 死亡後自動重建** — 不再留下無法互動的白畫面
+- **修正重複的 App 實例** — MainActivity 改為 `launchMode="singleTask"`。先前未指定 launchMode，App 已執行時再次啟動（安裝後點「開啟」、部分 launcher intent）會疊出第二個 Activity，連帶產生第二個 ViewModel 與第二條背景收集迴圈，頁面數與記憶體直接翻倍
 
-實機量測（Redmi 平板、4 GB RAM）：同時存活的頁面數從 5–6 降到 1，renderer 峰值從 1.5–1.68 GB 降到 681–863 MB，裝置可用記憶體從 408 MB 回到 1.38 GB，量測期間 renderer 死亡 0 次、系統也不再為了騰出記憶體而終止其他 app。完整證據與後續待辦見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
+實機量測（Redmi 平板、4 GB RAM、3 輪完整收集週期、44 個樣本）：同時存活的頁面數從 5–6 降到 **1**（從未出現 2），renderer 峰值從 1.5–1.68 GB 降到 707–1,022 MB，renderer 死亡從每 6–7 分鐘一次降到量測期間 **0 次**，裝置可用記憶體從 408 MB 回到 1.0–1.4 GB，系統也不再為了騰出記憶體而終止其他 app。
+
+> 已知限制：renderer 記憶體仍會每輪累積約 150 MB 且 3 輪內未收斂，因此 A 目前是**延後**而非消除 OOM；renderer 死亡時 App 已能存活。根治方案與完整證據見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
 
 ### Features
 

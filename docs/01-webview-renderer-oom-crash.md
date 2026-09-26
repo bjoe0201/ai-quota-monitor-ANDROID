@@ -7,16 +7,17 @@
 | 修復版本 | v2.3 (versionCode 14) |
 | 症狀 | App 啟動後運作正常，放置 14–61 分鐘後整個關閉，不會自行重啟 |
 | 根因 | 背景 WebView 共用的 renderer 進程記憶體耗盡而死亡，而 App 未實作 `onRenderProcessGone()`，WebView 層因此刻意終止整個 App 進程 |
-| 狀態 | 缺陷 B（韌性）與缺陷 A（記憶體模型）皆已修復並實機驗證；跨輪次的殘留累積待長時間觀察 |
+| 狀態 | 缺陷 B（韌性）、A（記憶體模型）、C（重複 Activity 實例）皆已修復並實機驗證。但 A 只是把 OOM 延後：renderer 每輪仍累積約 150 MB，尚未收斂 — 根治需要 A′ |
 
 ## TL;DR
 
-兩層缺陷疊加：
+三層缺陷疊加：
 
 - **A — renderer 記憶體撐爆**：6 個 desktop-UA 的重量級 SPA 全部常駐在**同一個** renderer 進程，從不暫停、抓完資料也不拆除。renderer RSS 7–10 分鐘就爬到 1.3–1.5 GB，在 4 GB RAM 的裝置上必然 OOM。
 - **B — renderer 死亡未被接手**：兩個 `WebViewClient` 都沒有覆寫 `onRenderProcessGone()`。Android WebView 在 renderer 死亡而沒有任何 WebView 接手時，會**故意終止整個 App 進程**。
+- **C — 重複的 MainActivity 實例**：manifest 未指定 `launchMode`，App 已執行時再次啟動會疊出第二個 Activity，連帶產生第二個 ViewModel、第二個 collector、第二條收集迴圈，頁面數與記憶體直接翻倍。此缺陷是在量測 A 的效果時才被數據暴露出來的。
 
-A 決定「多久死一次」，B 決定「死的是一張卡片還是整個 App」。
+A 決定「多久死一次」，B 決定「死的是一張卡片還是整個 App」，C 則把 A 的成本乘以二。
 
 ## 症狀
 
@@ -79,7 +80,7 @@ App process uptime 分布 859s–3666s（14–61 分鐘），與使用者描述�
 
 ## 根因
 
-### 缺陷 A — renderer 記憶體模型（未修復）
+### 缺陷 A — renderer 記憶體模型（已修復，見「修復 A」）
 
 `DashboardViewModel.loadLoggedInServices()` 會為每個「已啟用且已登入」的服務各開一個背景 WebView，並且：
 
@@ -210,46 +211,87 @@ adb logcat -b crash -d | grep -c ai_quota_monitor      # 必須為 0
 
 舊模型是固定每 5 分鐘無條件觸發 `refreshAll()`，上一輪沒跑完就會疊加。新模型改為**一輪跑完才開始計時**下一輪，因此頁面永遠不會互相堆疊。代價是單一服務的更新間隔變長：一輪約需「服務數 × (載入時間 + 20 秒安靜期)」，6 個服務約 3–8 分鐘，加上設定的間隔。
 
+### 缺陷 C — 重複的 MainActivity 實例（v2.3 一併修復）
+
+第一次量測 A 的效果時，資料顯示同時存在**兩個**頁面，而且有些樣本的兩個 URL 完全相同：
+
+```
+01:15:59  pages=[platform.claude.com/settings/billing, platform.claude.com/settings/billing]
+01:16:30  pages=[openrouter.ai/sign-in?..., openrouter.ai/sign-in?...]
+```
+
+同一個 serviceKey 在 `webViews` map 裡不可能有兩份，所以這代表有兩個 collector 實例。查 task 狀態證實：
+
+```
+Task{ff6ff5 #208 ... sz=2}
+  * Hist #1: ActivityRecord{190619168 .../.MainActivity}  rootOfTask=false
+  * Hist #0: ActivityRecord{160004409 .../.MainActivity}  rootOfTask=true
+```
+
+**兩個 MainActivity 疊在同一個 task。** 每個 Activity 有自己的 ViewModelStore，於是產生兩個 `DashboardViewModel` → 兩個 `WebViewDataCollector` → 兩條收集迴圈並行跑同一份計畫，彼此錯開一步。
+
+根因：`AndroidManifest.xml` 的 MainActivity 沒有指定 `launchMode`，使用預設的 `standard`。任何在 App 已執行時再次啟動 MainActivity 的路徑（安裝完成後點「開啟」、部分 launcher intent、`am start`）都會疊出第二個實例。
+
+這是既有缺陷，與 A 無關，而且在 A 之前更嚴重 — 兩個 ViewModel 各自常駐 6 個 SPA 等於 12 個頁面，很可能是原本 renderer 死亡頻率如此高的隱藏放大因素。
+
+修復：`android:launchMode="singleTask"`。驗證方式為連續啟動三次（`am start` ×2 + launcher intent）後檢查 task：
+
+| | 修復前 | 修復後 |
+| --- | --- | --- |
+| 連續啟動 3 次後的 task | `sz=2` | **`sz=1`** |
+
 ### A 的實機量測（v2.3，Redmi 24075RP89G）
 
-每 15 秒記錄 App RSS、renderer RSS，以及 DevTools 當下列出的頁面：
+每 15 秒記錄 renderer RSS、DevTools 的 page target 數與 URL、以及 task 的 `sz=`（確保沒有重複實例污染數據）。44 個樣本、涵蓋 3 輪完整週期：
+
+| 檢查項 | 結果 |
+| --- | --- |
+| 同時存活的頁面數 | **0 ×16、1 ×28、從未出現 2** |
+| task `sz=` | 44 個樣本**全部為 1** |
+| renderer 死亡 | **0 次**（crash buffer 中本套件出現 0 次） |
+| lmkd 擊殺其他 app | **0 次** |
+
+renderer（pid 24660）走勢：
 
 ```
-01:04:10  app=311MB  renderer=473MB  pages=chatgpt.com/settings/usage
-01:04:26  app=311MB  renderer=532MB  pages=platform.openai.com/.../billing/overview
-01:04:57  app=321MB  renderer=613MB  pages=platform.claude.com/settings/billing
-01:05:28  app=323MB  renderer=681MB  pages=openrouter.ai/sign-in?...        ← 第 1 輪峰值
-01:06:47  app=318MB  renderer=645MB  pages=（無）                            ← 輪次間空檔
-01:08:22  app=318MB  renderer=505MB  pages=（無）                            ← 空檔中回落
-01:08:54  app=323MB  renderer=677MB  pages=claude.ai/new#settings/usage      ← 第 2 輪開始
-01:09:25  app=321MB  renderer=784MB  pages=chatgpt.com/settings/usage
-01:11:00  app=299MB  renderer=863MB  pages=openrouter.ai/sign-in?...        ← 第 2 輪峰值
+01:24:09  455MB  chatgpt                第 1 輪開始
+01:26:00  707MB  openrouter/sign-in     第 1 輪峰值
+01:28:56  523MB  （無頁面）              輪次間空檔，回落到底線
+01:29:28  670MB  claude.ai              第 2 輪開始
+01:30:48  847MB  platform.claude.com    第 2 輪峰值
+01:34:48  655MB  （無頁面）              空檔底線（比上一次高 130MB）
+01:35:04  820MB  claude.ai              第 3 輪開始
+01:35:36  910MB  chatgpt                （取樣結束，仍在上升）
+之後量測  1022MB                        第 3 輪實際峰值更高
 ```
 
-| 指標 | 修復前 | 修復後（v2.3） |
+| 指標 | 修復前 | v2.3 |
 | --- | --- | --- |
-| 同時存活的頁面數 | 5–6 | **1**（30 個樣本中 22 個為 1、8 個為 0，從未出現 2） |
-| renderer 峰值 | 1.5–1.68 GB，然後死亡 | 681 MB（第 1 輪）→ 863 MB（第 2 輪） |
-| 裝置 `MemAvailable` | 408 MB | **1,379 MB** |
-| lmkd 擊殺其他 app | 40 分鐘內 5 次以上 | **0 次** |
-| renderer 死亡 | 每 6–7 分鐘 | 量測期間 0 次 |
+| 同時存活頁面 | 5–6（重複實例時 10–12） | 1 |
+| renderer 峰值 | 1.5–1.68 GB，然後死亡 | 707 MB → 849 MB → 1,022 MB（逐輪上升） |
+| renderer 死亡頻率 | 每 6–7 分鐘 | 12 分鐘量測期間 0 次 |
+| 裝置 `MemAvailable` | 408 MB | 1,056–1,379 MB |
+| lmkd 擊殺其他 app | 40 分鐘 5 次以上 | 0 |
 
-「同時只有一個頁面」這件事由 DevTools 的 target 清單直接證實，不是推論。輪次間空檔顯示拆頁面確實有效：頁面全部釋放後 renderer 從 645 MB 回落到 505 MB。
+「一次只有一個頁面」由 DevTools target 清單直接證實，不是推論。輪次間空檔也證明拆頁面確實有效：頁面全部釋放後 renderer 會回落（707→523 MB、847→655 MB）。
 
-### 尚待觀察：跨輪次的殘留累積
+### 尚未解決：跨輪次的殘留累積
 
-第 2 輪的峰值（863 MB）比第 1 輪（681 MB）高，空檔的底線是 505 MB — 也就是 **Chromium 並沒有把拆掉的頁面記憶體完全還回系統**，跨輪次仍有殘留累積。
+這是本次量測最重要的發現，**A 並沒有根治 OOM，只是延後它**：
 
-- 目前距離 1.5 GB 的死亡線還有很大餘裕，且裝置壓力指標全面改善
-- 但如果這個累積不會收斂到某個平台，只是把 OOM 從「每 6–7 分鐘」延後到「每數小時」，並沒有根治
-- 需要數小時的連續觀察才能判斷它是收斂還是持續爬升。若確認持續爬升，下一步是 A′（不啟動 SPA，只借用同源 fetch 環境），從根本減少每個頁面的分配量
+- 每輪峰值逐輪上升：707 → 849 → 1,022 MB（約每輪 +150 MB）
+- 空檔底線也逐輪上升：523 → 655 MB
+- 3 輪之後仍未收斂
 
-也要記錄一個判斷失誤：實作前預估的 renderer 峰值是 200–300 MB，實測是 681–863 MB。單一 desktop SPA 的成本被低估，且 renderer 進程本身的基礎開銷與殘留沒有算進去。
+也就是說 Chromium 沒有把拆掉頁面所佔的記憶體完全還給系統。依這個斜率，再幾輪（約 15–30 分鐘）就會回到 1.5 GB 的死亡線。差別在於現在 renderer 死亡不會再拖垮 App（缺陷 B 已修），而且死亡間隔從 6–7 分鐘拉長到數十分鐘。
+
+要真正根治，下一步是 **A′** — 不啟動 SPA，只載入同源輕量頁並用 `fetch()` / `DOMParser` 取資料，讓每個頁面的分配量從數百 MB 降到數 MB。
+
+同時記錄一個判斷失誤：實作 A 之前預估的 renderer 峰值是 200–300 MB，實測是 707–1,022 MB。單一 desktop SPA 的成本與 renderer 進程的殘留都被低估了。
 
 ### 量測期間發現的額外成本
 
-OpenRouter 目前是登出狀態（頁面停在 `openrouter.ai/sign-in?redirect_url=...`），永遠不會回報資料，因此**每一輪都會用掉整個 90 秒逾時**。再加上「附帶發現 1」提到 `isLoginPage()` 比對不到 `/sign-in`（只比對 `/signin`），這個服務既不會被標記為登出、也不會提示重新登入，只是靜靜地吃掉每輪約 90 秒。
-
+OpenRouter 目前是登出狀態（頁面停在 `openrouter.ai/sign-in?redirect_url=...`），永遠不會回報資料，因此**每一輪都會用掉整個 90 秒逾時**（實測第 1 輪 01:25:44–01:27:04、第 2 輪 01:31:20–01:32:40，各約 80 秒）。再加上「附帶發現 1」提到 `isLoginPage()` 比對不到 `/sign-in`（只比對 `/signin`），這個服務既不會被標記為登出、也不會提示重新登入，只是靜靜地吃掉每輪約 90 秒。
 ### 仍可繼續優化的方向
 
 | 方案 | renderer 峰值 | 風險 |
