@@ -74,7 +74,7 @@ class WebViewDataCollector(private val context: Context) {
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
                     cookieManager.flush()
                     // If we're back on the target URL (not login page), login succeeded
-                    if (!isLoginPage(serviceKey, loadedUrl) && loadedUrl.contains(getExpectedDomain(serviceKey))) {
+                    if (!isLoginUrl(loadedUrl) && loadedUrl.contains(getExpectedDomain(serviceKey))) {
                         onLoginDetected()
                     }
                 }
@@ -123,7 +123,7 @@ class WebViewDataCollector(private val context: Context) {
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView, loadedUrl: String, favicon: android.graphics.Bitmap?) {
                     // Inject early so hooks are set before page's own JS fetches data
-                    if (!isLoginPage(serviceKey, loadedUrl)) {
+                    if (!isLoginUrl(loadedUrl)) {
                         val script = getJsScript()
                         if (script.isNotEmpty()) {
                             view.evaluateJavascript(script, null)
@@ -132,7 +132,7 @@ class WebViewDataCollector(private val context: Context) {
                 }
 
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
-                    if (isLoginPage(serviceKey, loadedUrl)) {
+                    if (isLoginUrl(loadedUrl)) {
                         // One sighting is not enough: a token refresh or bot check can land
                         // here transiently, and marking a service logged out is sticky.
                         if (expiryGuard.onLoginPageSeen(serviceKey)) {
@@ -187,19 +187,6 @@ class WebViewDataCollector(private val context: Context) {
         wv.loadUrl("about:blank")
         wv.clearHistory()
         wv.destroy()
-    }
-
-    private fun isLoginPage(serviceKey: String, currentUrl: String): Boolean {
-        val url = currentUrl.lowercase()
-        return when {
-            url.contains("accounts.google.com") -> true
-            url.contains("/login") -> true
-            url.contains("/signin") -> true
-            url.contains("/sessions") -> true
-            url.contains("/auth") -> true
-            url.contains("/sso") -> true
-            else -> false
-        }
     }
 
     private fun getExpectedDomain(serviceKey: String): String = when (serviceKey) {

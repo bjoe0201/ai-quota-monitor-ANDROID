@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ai_quota_monitor_android.BuildConfig
 import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 
 @Composable
@@ -45,7 +46,7 @@ fun StatusBar(
             )
         }
         Text(
-            text = "v1.8",
+            text = "v${BuildConfig.VERSION_NAME}",
             color = colors.TextFaint,
             fontSize = 8.sp,
             fontFamily = FontFamily.Monospace,

@@ -43,6 +43,10 @@ google-services.json
 
 # Local release staging (verified artifacts are uploaded explicitly)
 /dist/
+# Holds the private signing keystore and any local build/debug artifacts.
+# Previously only *.jks was ignored, so anything else dropped here — APKs,
+# screenshots containing account data — was one `git add .` away from being public.
+/release/
 
 # OS files
 .DS_Store

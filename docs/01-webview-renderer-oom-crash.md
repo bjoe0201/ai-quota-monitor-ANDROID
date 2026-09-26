@@ -305,9 +305,11 @@ OpenRouter 目前是登出狀態（頁面停在 `openrouter.ai/sign-in?redirect_
 
 ## 附帶發現
 
-1. **`isLoginPage()` 比對不到 OpenRouter 的登入頁** — 該服務登出後會停在 `openrouter.ai/sign-in?redirect_url=...`，而比對清單只有 `/signin`（無連字號），因此 session 過期永遠不會被通報，卡片只是靜靜地不再更新。
+1. **`isLoginPage()` 比對不到 OpenRouter 的登入頁**（v2.3 已修）— 該服務登出後會停在 `openrouter.ai/sign-in?redirect_url=...`，而比對清單只有 `/signin`（無連字號），因此 session 過期永遠不會被通報，卡片只是靜靜地不再更新，而且每輪白燒 90 秒逾時。修法：把判定抽成純函式 `isLoginUrl()`（原方法需要 `Context`，無法在 JVM 測試，且收了一個從未使用的 `serviceKey` 參數），比對清單補上 `/sign-in` 與 `/sign_in`。測試同時涵蓋反向案例 — 六個受監控的資料頁面都必須不被誤判，因為加寬規則最大的風險是把正常頁面當成登入頁而停掉該服務的收集。
 2. **`WebViewDataCollector.createLoginWebView()` 是死程式碼** — `ServiceLoginScreen` 自行建立 WebView，沒有任何呼叫端。
-3. **`ServiceLoginScreen` 的登入 WebView 未在離開畫面時 `destroy()`** — 每次進入登入畫面會留下一個 WebView。修復 A 只處理背景收集用的 WebView，這個登入畫面的洩漏尚未處理。
+3. **`ServiceLoginScreen` 的登入 WebView 未在離開畫面時 `destroy()`**（v2.3 已修）— 這一條在量測途中被實際觸發：使用者去登入 OpenRouter，資料立刻顯示同時有兩個 `openrouter.ai/` 頁面活著，renderer 從約 700 MB 跳到 **1,413 MB**，而 task 仍是 `sz=1`（不是缺陷 C）。每進一次登入畫面就留下一個活著的頁面，且不受收集迴圈管理，會一直累積到 App 重啟。修法：`AndroidView` 加上 `onRelease`，離開畫面時 `stopLoading()` → `about:blank` → `clearHistory()` → `destroy()`；`onRenderProcessGone` 也改為只遞增 generation，由 `onRelease` 統一負責銷毀，避免重複 destroy。驗證：進入登入畫面 `pages` 1 → 2，返回後 → **0**。
+4. **三處硬編碼版號**（v2.3 已修）— 標題列、底部狀態列（顯示 `v1.8`）、設定→關於（顯示 `2.0`）各自寫死版號，與實際 build 無關。三處都改為讀 `BuildConfig`。
+5. **`release/` 目錄並未被 git 忽略** — `.gitignore` 只用 `*.jks` 擋住金鑰，任何其他放進該目錄的檔案（APK、含帳號資料的截圖）都可能被提交到公開 repo。已補上 `/release/`。
 
 ## 診斷指令參考
 

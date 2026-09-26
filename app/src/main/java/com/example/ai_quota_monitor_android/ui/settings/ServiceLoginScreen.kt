@@ -253,8 +253,8 @@ fun ServiceLoginScreen(
                                         detail: RenderProcessGoneDetail?,
                                     ): Boolean {
                                         // Returning true is what keeps the app process alive.
-                                        (view?.parent as? ViewGroup)?.removeView(view)
-                                        view?.destroy()
+                                        // Bumping the generation releases this WebView through
+                                        // onRelease below, which is where it gets destroyed.
                                         webViewGeneration++
                                         return true
                                     }
@@ -268,6 +268,16 @@ fun ServiceLoginScreen(
                             }
                         },
                         modifier = Modifier.fillMaxSize(),
+                        onRelease = { webView ->
+                            // Leaving this screen must take the page with it. A login WebView
+                            // left behind keeps a live page in the shared renderer process for
+                            // the rest of the app's life, on top of whatever the collection
+                            // cycle is loading.
+                            webView.stopLoading()
+                            webView.loadUrl("about:blank")
+                            webView.clearHistory()
+                            webView.destroy()
+                        },
                     )
                 }
             }

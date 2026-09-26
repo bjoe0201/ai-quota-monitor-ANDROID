@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ai_quota_monitor_android.BuildConfig
 import com.example.ai_quota_monitor_android.data.model.DashboardLayout
 import com.example.ai_quota_monitor_android.data.model.ThemeMode
 import com.example.ai_quota_monitor_android.data.model.effectiveServiceOrder
@@ -326,7 +327,8 @@ fun SettingsScreen(
             // ── About ──────────────────────────────────────────────────────
             SectionTitle("關於")
             SettingsCard {
-                KvSettingsRow("版本", "2.0")
+                // Read from BuildConfig so it can never drift from the installed build again.
+                KvSettingsRow("版本", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                 HorizontalDivider(color = colors.Border)
                 KvSettingsRow("資料來源", "WebView + HTTP Server")
             }
