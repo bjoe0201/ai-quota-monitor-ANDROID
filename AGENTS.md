@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor) — a desktop widget that monitors AI service quotas (OpenAI, Claude, GitHub Copilot, OpenRouter). The original is Python + tkinter; this project rebuilds it as a native Android app with Kotlin + Jetpack Compose.
 
-Full migration plan: `PLANS/migration-plan.md`
+Full migration plan: `PLANS/01-migration-plan.md`
 
 ## Fixed APK Release Process (Use This Every Time)
 
