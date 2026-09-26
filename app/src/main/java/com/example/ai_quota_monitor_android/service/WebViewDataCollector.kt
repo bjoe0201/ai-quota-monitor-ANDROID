@@ -2,9 +2,6 @@ package com.example.ai_quota_monitor_android.service
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
@@ -19,31 +16,30 @@ import org.json.JSONObject
 /**
  * Manages background WebViews that load AI service pages and inject JS
  * to intercept API responses. Data is passed back via @JavascriptInterface.
+ *
+ * Pages are expensive: every WebView of an app shares one renderer process, and a single
+ * desktop SPA costs 150–250 MB there. The collection cycle therefore keeps at most one page
+ * alive at a time and calls [destroyService] as soon as it has the data — see [collectionSteps].
  */
 class WebViewDataCollector(private val context: Context) {
 
     private val webViews = mutableMapOf<String, WebView>()
-    private val serviceUrls = mutableMapOf<String, String>()
     private var onSessionExpired: ((String) -> Unit)? = null
+    private var onRendererGone: ((String) -> Unit)? = null
     private var jsScript: String? = null
 
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val recoveryPolicy = RendererRecoveryPolicy { SystemClock.elapsedRealtime() }
     private val expiryGuard = SessionExpiryGuard()
-
-    /** Services whose renderer died and that still have to be reloaded. */
-    private val pendingRecovery = linkedSetOf<String>()
-    private var recoveryScheduled = false
-
-    /** Asked before a dead service is reloaded, so disabled/logged-out services stay down. */
-    private var shouldReload: (String) -> Boolean = { true }
 
     fun setOnSessionExpired(listener: (String) -> Unit) {
         onSessionExpired = listener
     }
 
-    fun setShouldReload(predicate: (String) -> Boolean) {
-        shouldReload = predicate
+    /**
+     * Called when the renderer process died and took [serviceKey]'s page with it. The WebView
+     * is already destroyed; the caller decides when to try that service again.
+     */
+    fun setOnRendererGone(listener: (String) -> Unit) {
+        onRendererGone = listener
     }
 
     private fun getJsScript(): String {
@@ -106,8 +102,8 @@ class WebViewDataCollector(private val context: Context) {
      */
     @SuppressLint("SetJavaScriptEnabled")
     fun loadService(serviceKey: String, url: String) {
-        // Destroy previous WebView for this service
-        webViews[serviceKey]?.destroy()
+        // Release any previous page for this service first
+        destroyService(serviceKey)
 
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
@@ -118,8 +114,12 @@ class WebViewDataCollector(private val context: Context) {
             @Suppress("DEPRECATION")
             settings.databaseEnabled = true
             settings.userAgentString = DESKTOP_UA
+            // Nothing is ever painted — these pages are only scraped — so decoded bitmaps
+            // would be pure renderer memory cost.
+            settings.loadsImagesAutomatically = false
+            settings.blockNetworkImage = true
             suppressRequestedWithHeader(this)
-            addJavascriptInterface(DataBridge(serviceKey), "AndroidBridge")
+            addJavascriptInterface(DataBridge(serviceKey), BRIDGE_NAME)
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView, loadedUrl: String, favicon: android.graphics.Bitmap?) {
                     // Inject early so hooks are set before page's own JS fetches data
@@ -148,72 +148,45 @@ class WebViewDataCollector(private val context: Context) {
                     }
                 }
 
+                /**
+                 * Handle the death of the renderer process shared by every WebView.
+                 *
+                 * Returning true is what keeps the app alive: without it the WebView layer
+                 * deliberately kills the whole app process ("Render process ... crash wasn't
+                 * handled by all associated webviews"). A WebView whose renderer is gone can
+                 * never be reused, so it is destroyed and the caller is told.
+                 */
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                    handleRendererGone(serviceKey, view)
+                    if (webViews[serviceKey] === view) {
+                        webViews.remove(serviceKey)
+                    }
+                    view.destroy()
+                    onRendererGone?.invoke(serviceKey)
                     return true
                 }
             }
             @SuppressLint("JavascriptInterface")
             this.also { cookieManager.setAcceptThirdPartyCookies(it, true) }
         }
-        serviceUrls[serviceKey] = url
         wv.loadUrl(url)
         webViews[serviceKey] = wv
     }
 
-    /**
-     * Handle the death of the renderer process shared by every background WebView.
-     *
-     * Without this the WebView layer deliberately kills the whole app process
-     * ("Render process ... crash wasn't handled by all associated webviews"). The dead
-     * WebView is unusable and must be replaced, but reloading every page at once would
-     * recreate the memory pressure that killed the renderer, so recovery is coalesced,
-     * staggered and backed off by [RendererRecoveryPolicy].
-     */
-    private fun handleRendererGone(serviceKey: String, view: WebView) {
-        if (webViews[serviceKey] === view) {
-            webViews.remove(serviceKey)
-        }
-        view.destroy()
-
-        if (serviceUrls.containsKey(serviceKey)) {
-            pendingRecovery += serviceKey
-        }
-        if (!recoveryScheduled) {
-            recoveryScheduled = true
-            // Every WebView sharing the renderer reports separately; collect them first.
-            mainHandler.postDelayed({ startRecovery() }, COALESCE_MS)
-        }
-    }
-
-    private fun startRecovery() {
-        recoveryScheduled = false
-        val keys = pendingRecovery.filter { shouldReload(it) }
-        pendingRecovery.clear()
-        if (keys.isEmpty()) return
-
-        val schedule = recoveryPolicy.scheduleFor(keys.size)
-        keys.forEachIndexed { index, key ->
-            mainHandler.postDelayed({
-                val url = serviceUrls[key] ?: return@postDelayed
-                if (shouldReload(key)) loadService(key, url)
-            }, schedule[index])
-        }
-    }
-
     fun destroyAll() {
-        mainHandler.removeCallbacksAndMessages(null)
-        recoveryScheduled = false
-        pendingRecovery.clear()
-        serviceUrls.clear()
-        webViews.values.forEach { it.destroy() }
-        webViews.clear()
+        webViews.keys.toList().forEach { destroyService(it) }
     }
 
+    /**
+     * Stop and release a service page. Blanking the page first lets the renderer drop the
+     * document, its JS heap and its timers before the WebView itself goes away.
+     */
     fun destroyService(serviceKey: String) {
-        pendingRecovery.remove(serviceKey)
-        serviceUrls.remove(serviceKey)
-        webViews.remove(serviceKey)?.destroy()
+        val wv = webViews.remove(serviceKey) ?: return
+        wv.stopLoading()
+        wv.removeJavascriptInterface(BRIDGE_NAME)
+        wv.loadUrl("about:blank")
+        wv.clearHistory()
+        wv.destroy()
     }
 
     private fun isLoginPage(serviceKey: String, currentUrl: String): Boolean {
@@ -262,8 +235,8 @@ class WebViewDataCollector(private val context: Context) {
     }
 
     companion object {
-        /** Window for collecting the renderer-gone reports of all affected WebViews. */
-        private const val COALESCE_MS = 1_000L
+        /** Name the injected script calls back through. */
+        private const val BRIDGE_NAME = "AndroidBridge"
 
         /** Desktop Chrome UA — matches login WebView; avoids mobile redirects. */
         const val DESKTOP_UA =

@@ -189,6 +189,9 @@ app/src/main/java/com/example/ai_quota_monitor_android/
 │   ├── BaseService.kt          # Abstract: fetch(config) -> ServiceResult
 │   ├── BrowserDataService.kt   # 5 subclasses reading from DataStoreRepository
 │   ├── WebViewDataCollector.kt  # WebView JS injection + Cookie management
+│   ├── CollectionPlan.kt       # collectionSteps(config): ordered pages for one cycle
+│   ├── RendererRecoveryPolicy.kt # Backoff after a renderer process death
+│   ├── SessionExpiryGuard.kt   # Repeated evidence before declaring a logout
 │   └── MonitorForegroundService.kt
 ├── ui/
 │   ├── theme/          # Dark theme (Linear/Raycast style from original COLORS dict)
@@ -203,12 +206,12 @@ app/src/main/java/com/example/ai_quota_monitor_android/
 
 Two data paths feed into the same `DataStoreRepository`:
 
-1. **WebView path (primary):** App loads AI service pages in background WebView, injects JS to intercept API responses via `@JavascriptInterface`, data flows directly into repository.
+1. **WebView path (primary):** App loads AI service pages in a background WebView, injects JS to intercept API responses via `@JavascriptInterface`, data flows directly into repository. Pages are collected **one at a time** — `DashboardViewModel.startCollectionLoop()` walks `collectionSteps(config)` and destroys each page as soon as it has reported, because every WebView shares one renderer process and six live SPAs exhausted it (see `docs/01-webview-renderer-oom-crash.md`).
 2. **HTTP Server path (secondary):** NanoHTTPD on port 7890 receives POST `/update` from PC browser running Tampermonkey script (same protocol as original Python app).
 
 ### Authentication
 
-All AI service pages require user login. Users authenticate once via full-screen WebView in the app; cookies are persisted by `CookieManager` to disk. Background fetches reuse saved cookies. If a session expires (detected by redirect to login URL), the card shows a warning and prompts re-login.
+All AI service pages require user login. Users authenticate once via full-screen WebView in the app; cookies are persisted by `CookieManager` to disk. Background fetches reuse saved cookies. If a session expires (detected by redirect to login URL on **two consecutive** loads — see `SessionExpiryGuard`), the card shows a warning and prompts re-login.
 
 ### 6 Monitored Services
 
@@ -236,7 +239,7 @@ Dashboard is divided into configurable **Sections**, each containing **Cards**. 
 
 ### Key Versions
 
-- **App version: 2.2** (versionCode 13)
+- **App version: 2.3** (versionCode 14)
 - AGP: 9.1.1 | Kotlin: 2.2.10 | Compose BOM: 2026.02.01
 - `minSdk = 31`, `targetSdk = 36`
 - Dependencies managed via `gradle/libs.versions.toml` (version catalog)

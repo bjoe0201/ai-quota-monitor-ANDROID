@@ -28,8 +28,8 @@ android {
         applicationId = "com.example.ai_quota_monitor_android"
         minSdk = 31
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.2"
+        versionCode = 14
+        versionName = "2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -64,6 +64,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // BuildConfig.VERSION_NAME is shown in the dashboard header
+        buildConfig = true
     }
 }
 

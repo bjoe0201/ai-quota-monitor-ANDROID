@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.3 (2026-09-27)
+
+### Fixes — 長時間執行後整個 App 關閉
+
+- **renderer 死亡不再拖垮整個 App** — 背景 WebView 共用的 renderer 進程記憶體耗盡而被系統終止時，App 過去會被 WebView 層一起打死（放置 14–61 分鐘後憑空消失）。現在 `onRenderProcessGone()` 會接手並回傳 `true`，App 存活、該頁面稍後重新載入
+- **一次只載入一個服務頁面，收完即拆** — 原本 6 個服務頁面全部常駐在同一個 renderer，總量會衝到 1.5 GB；改為依序走訪，每個頁面收到資料後立即釋放（先 `about:blank` 再 `destroy`），讓 renderer 丟掉 document、JS heap 與計時器
+- **輪詢改為一輪跑完才計時** — 舊版固定每 5 分鐘無條件重載，上一輪未結束就會疊加頁面
+- **背景頁面不再載入圖片** — 這些頁面只被解析、從不繪製，解碼後的圖片是純浪費
+- **登入狀態誤判防護** — 需連續 2 次偵測到登入頁才判定為登出，避免 token refresh、bot 檢查或慢速 SPA 中間態造成誤判（誤判會停掉該服務的背景收集直到手動重新登入）
+- **登入畫面 renderer 死亡後自動重建** — 不再留下無法互動的白畫面
+
+### Features
+
+- **主畫面標題顯示版號** — A/B/C/D 四種 layout 的標題旁都顯示目前版本
+
+### Docs
+
+- 新增 `docs/01-webview-renderer-oom-crash.md` — 完整根因分析、證據、可重現的驗證步驟與診斷指令
+- 新增 `docs/README.md` — 技術文件索引與撰寫規範
+
+### Testing
+
+- 新增 15 個 JVM 單元測試：`RendererRecoveryPolicyTest`（錯開排程、退避、退避歸零）、`SessionExpiryGuardTest`（登出證據累積）、`CollectionPlanTest`（收集順序、停用／未登入／無 URL 的排除、GitHub 第二頁面）
+
+
 ## v2.2 (2026-09-09)
 
 ### Features — ChatGPT Pro 與使用量限制重設

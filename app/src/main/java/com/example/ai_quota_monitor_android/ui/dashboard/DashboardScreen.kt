@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ai_quota_monitor_android.BuildConfig
 import com.example.ai_quota_monitor_android.data.model.DashboardLayout
 import com.example.ai_quota_monitor_android.data.model.enabledServiceKeys
 import com.example.ai_quota_monitor_android.ui.cards.ClockCardCompact
@@ -166,6 +167,7 @@ private fun LayoutB(
                         fontSize = 18.sp,
                         lineHeight = 22.sp,
                     )
+                    AppVersionLabel()
                     Spacer(Modifier.height(14.dp))
                     ClockCardSidebar(Modifier.fillMaxWidth())
                     Spacer(Modifier.weight(1f))
@@ -230,14 +232,16 @@ private fun LayoutB(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = "AI Quota\nMonitor",
-                        color = colors.Text,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        lineHeight = 17.sp,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "AI Quota\nMonitor",
+                            color = colors.Text,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            lineHeight = 17.sp,
+                        )
+                        AppVersionLabel()
+                    }
                     ClockCardStrip()
                     IconButton(onClick = { viewModel.refreshAll() }, modifier = Modifier.size(32.dp)) {
                         Icon(
@@ -298,6 +302,7 @@ private fun LayoutC(
                     fontWeight = FontWeight.Bold,
                     fontSize = if (isLandscape) 16.sp else 14.sp,
                 )
+                AppVersionLabel()
                 Box(
                     Modifier
                         .width(1.dp)
@@ -400,11 +405,31 @@ private fun LayoutD(
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
+/** Running app version, shown next to the dashboard title in every layout. */
+@Composable
+private fun AppVersionLabel(modifier: Modifier = Modifier) {
+    Text(
+        text = "v${BuildConfig.VERSION_NAME}",
+        color = LocalAppColors.current.TextDim,
+        fontSize = 9.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = modifier,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StandardTopBar(viewModel: DashboardViewModel, onSettingsClick: () -> Unit) {
     TopAppBar(
-        title = { Text("AI Quota Monitor", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text("AI Quota Monitor", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                AppVersionLabel()
+            }
+        },
         actions = {
             IconButton(onClick = { viewModel.refreshAll() }) {
                 Icon(Icons.Default.Refresh, contentDescription = "重新整理")
