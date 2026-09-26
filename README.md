@@ -59,8 +59,9 @@
 | 🕐 **翻頁時鐘** | 仿機械翻頁風格的即時時鐘卡片 |
 | 🌑 **深色主題** | Linear / Raycast 風格深色配色，每個服務有專屬強調色 |
 | 🍪 **Cookie 持久化** | 登入一次即可，重啟 App 免重新登入 |
-| 🔔 **登入偵測** | 偵測 session 過期或 Google SSO 限制，即時提示重新登入 |
-| ↕️ **依 Card 排序啟動** | 背景監控依設定中的 Card 順序啟動；停用 Card 不建立背景 WebView |
+| 🔔 **登入偵測** | 偵測 session 過期或 Google SSO 限制，即時提示重新登入；需連續兩次判定才標記登出，避免暫時性導向造成誤判 |
+| ↕️ **依 Card 排序收集** | 背景監控依設定中的 Card 順序**逐一**收集；停用或未登入的 Card 不建立背景 WebView |
+| 🧱 **記憶體安全的背景收集** | 同時只保留一個服務頁面，收到資料後立即釋放，避免多個頁面同時常駐把 WebView renderer 撐爆 |
 
 ---
 
@@ -100,7 +101,9 @@
 
 ### 3. 查看儀表板
 
-返回主畫面，系統會自動在背景載入各服務頁面並更新用量資訊。
+返回主畫面，系統會自動在背景載入各服務頁面並更新用量資訊。標題右側會顯示目前 App 版本。
+
+> **收集方式**：為了不讓多個服務頁面同時佔用記憶體，App 會**一次只載入一個服務頁面**，收到資料後立即關閉再換下一個。因此各張 Card 不會同時更新，而是依 Card 順序陸續更新；走完全部服務約需數分鐘，之後等待「自動刷新間隔」（設定中可調 1–10 分鐘）再跑下一輪。每張 Card 都會顯示自己的資料時間，資料過舊時會出現提示。
 
 ### （選用）PC 端 Tampermonkey 推送
 
@@ -114,13 +117,15 @@
 資料來源                            記憶體儲存                   UI 層
 ┌─────────────────────┐
 │  WebView + JS 注入   │──┐
-│  （背景自動刷新）      │  │    ┌──────────────────────┐   ┌─────────────────┐
+│ （一次一個頁面，收完即拆）│  │    ┌──────────────────────┐   ┌─────────────────┐
 └─────────────────────┘  ├──▶ │  DataStoreRepository  │──▶│  DashboardScreen │
 ┌─────────────────────┐  │    │  （StateFlow / 記憶體）  │   │  ServiceCard     │
 │  HTTP Server :7890   │──┘    └──────────────────────┘   │  ClockCard       │
 │  （Tampermonkey）    │                                    └─────────────────┘
 └─────────────────────┘
 ```
+
+App 內所有 WebView 共用同一個 renderer 進程，讓 6 個服務頁面同時常駐會把它撐到 1.5 GB 並被系統終止，連帶終止整個 App。因此背景收集改為序列化：`collectionSteps(config)` 產生本輪要走訪的頁面，`DashboardViewModel` 逐一載入、收到資料後立即釋放。詳見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
 
 ---
 
@@ -129,8 +134,8 @@
 | Service | Source Key | 資料來源頁面 |
 |---------|-----------|------------|
 | Claude.ai | `claude_usage` | claude.ai/new#settings/usage |
-| GitHub Copilot | `github_copilot` | github.com/settings/copilot/features + /settings/billing/budgets |
-| OpenAI | `openai_billing` | platform.openai.com/billing |
+| GitHub Copilot | `github_copilot` | github.com/settings/copilot + /settings/billing/budgets |
+| OpenAI | `openai_billing` | platform.openai.com/settings/organization/billing/overview |
 | Claude API | `claude_billing` | platform.claude.com/settings/billing |
 | OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
 | ChatGPT | `chatgpt_usage` | chatgpt.com/#settings/Usage |

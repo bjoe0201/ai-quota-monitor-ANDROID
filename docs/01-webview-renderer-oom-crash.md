@@ -7,7 +7,7 @@
 | 修復版本 | v2.3 (versionCode 14) |
 | 症狀 | App 啟動後運作正常，放置 14–61 分鐘後整個關閉，不會自行重啟 |
 | 根因 | 背景 WebView 共用的 renderer 進程記憶體耗盡而死亡，而 App 未實作 `onRenderProcessGone()`，WebView 層因此刻意終止整個 App 進程 |
-| 狀態 | 缺陷 B（韌性）已修復並實機驗證；缺陷 A（記憶體模型）已改為序列化收集，實機記憶體量測待補 |
+| 狀態 | 缺陷 B（韌性）與缺陷 A（記憶體模型）皆已修復並實機驗證；跨輪次的殘留累積待長時間觀察 |
 
 ## TL;DR
 
@@ -209,6 +209,46 @@ adb logcat -b crash -d | grep -c ai_quota_monitor      # 必須為 0
 ### 輪詢模型的改變
 
 舊模型是固定每 5 分鐘無條件觸發 `refreshAll()`，上一輪沒跑完就會疊加。新模型改為**一輪跑完才開始計時**下一輪，因此頁面永遠不會互相堆疊。代價是單一服務的更新間隔變長：一輪約需「服務數 × (載入時間 + 20 秒安靜期)」，6 個服務約 3–8 分鐘，加上設定的間隔。
+
+### A 的實機量測（v2.3，Redmi 24075RP89G）
+
+每 15 秒記錄 App RSS、renderer RSS，以及 DevTools 當下列出的頁面：
+
+```
+01:04:10  app=311MB  renderer=473MB  pages=chatgpt.com/settings/usage
+01:04:26  app=311MB  renderer=532MB  pages=platform.openai.com/.../billing/overview
+01:04:57  app=321MB  renderer=613MB  pages=platform.claude.com/settings/billing
+01:05:28  app=323MB  renderer=681MB  pages=openrouter.ai/sign-in?...        ← 第 1 輪峰值
+01:06:47  app=318MB  renderer=645MB  pages=（無）                            ← 輪次間空檔
+01:08:22  app=318MB  renderer=505MB  pages=（無）                            ← 空檔中回落
+01:08:54  app=323MB  renderer=677MB  pages=claude.ai/new#settings/usage      ← 第 2 輪開始
+01:09:25  app=321MB  renderer=784MB  pages=chatgpt.com/settings/usage
+01:11:00  app=299MB  renderer=863MB  pages=openrouter.ai/sign-in?...        ← 第 2 輪峰值
+```
+
+| 指標 | 修復前 | 修復後（v2.3） |
+| --- | --- | --- |
+| 同時存活的頁面數 | 5–6 | **1**（30 個樣本中 22 個為 1、8 個為 0，從未出現 2） |
+| renderer 峰值 | 1.5–1.68 GB，然後死亡 | 681 MB（第 1 輪）→ 863 MB（第 2 輪） |
+| 裝置 `MemAvailable` | 408 MB | **1,379 MB** |
+| lmkd 擊殺其他 app | 40 分鐘內 5 次以上 | **0 次** |
+| renderer 死亡 | 每 6–7 分鐘 | 量測期間 0 次 |
+
+「同時只有一個頁面」這件事由 DevTools 的 target 清單直接證實，不是推論。輪次間空檔顯示拆頁面確實有效：頁面全部釋放後 renderer 從 645 MB 回落到 505 MB。
+
+### 尚待觀察：跨輪次的殘留累積
+
+第 2 輪的峰值（863 MB）比第 1 輪（681 MB）高，空檔的底線是 505 MB — 也就是 **Chromium 並沒有把拆掉的頁面記憶體完全還回系統**，跨輪次仍有殘留累積。
+
+- 目前距離 1.5 GB 的死亡線還有很大餘裕，且裝置壓力指標全面改善
+- 但如果這個累積不會收斂到某個平台，只是把 OOM 從「每 6–7 分鐘」延後到「每數小時」，並沒有根治
+- 需要數小時的連續觀察才能判斷它是收斂還是持續爬升。若確認持續爬升，下一步是 A′（不啟動 SPA，只借用同源 fetch 環境），從根本減少每個頁面的分配量
+
+也要記錄一個判斷失誤：實作前預估的 renderer 峰值是 200–300 MB，實測是 681–863 MB。單一 desktop SPA 的成本被低估，且 renderer 進程本身的基礎開銷與殘留沒有算進去。
+
+### 量測期間發現的額外成本
+
+OpenRouter 目前是登出狀態（頁面停在 `openrouter.ai/sign-in?redirect_url=...`），永遠不會回報資料，因此**每一輪都會用掉整個 90 秒逾時**。再加上「附帶發現 1」提到 `isLoginPage()` 比對不到 `/sign-in`（只比對 `/signin`），這個服務既不會被標記為登出、也不會提示重新登入，只是靜靜地吃掉每輪約 90 秒。
 
 ### 仍可繼續優化的方向
 

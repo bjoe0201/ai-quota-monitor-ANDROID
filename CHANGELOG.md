@@ -11,6 +11,8 @@
 - **登入狀態誤判防護** — 需連續 2 次偵測到登入頁才判定為登出，避免 token refresh、bot 檢查或慢速 SPA 中間態造成誤判（誤判會停掉該服務的背景收集直到手動重新登入）
 - **登入畫面 renderer 死亡後自動重建** — 不再留下無法互動的白畫面
 
+實機量測（Redmi 平板、4 GB RAM）：同時存活的頁面數從 5–6 降到 1，renderer 峰值從 1.5–1.68 GB 降到 681–863 MB，裝置可用記憶體從 408 MB 回到 1.38 GB，量測期間 renderer 死亡 0 次、系統也不再為了騰出記憶體而終止其他 app。完整證據與後續待辦見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
+
 ### Features
 
 - **主畫面標題顯示版號** — A/B/C/D 四種 layout 的標題旁都顯示目前版本

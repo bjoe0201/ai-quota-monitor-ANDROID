@@ -204,8 +204,8 @@ All AI service pages require user login. Users authenticate once via full-screen
 | Service | source_key | Data Source URL |
 |---------|-----------|-----------------|
 | Claude.ai | `claude_usage` | claude.ai/new#settings/usage |
-| GitHub Copilot | `github_copilot` | github.com/settings/billing |
-| OpenAI | `openai_billing` | platform.openai.com/billing |
+| GitHub Copilot | `github_copilot` | github.com/settings/copilot + /settings/billing/budgets |
+| OpenAI | `openai_billing` | platform.openai.com/settings/organization/billing/overview |
 | Claude API | `claude_billing` | platform.claude.com/settings/billing |
 | OpenRouter | `openrouter` | openrouter.ai/settings/credits + /activity |
 | ChatGPT | `chatgpt_usage` | chatgpt.com/#settings/Usage |
