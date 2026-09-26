@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -35,6 +36,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +74,9 @@ fun ServiceLoginScreen(
     var progress by remember { mutableIntStateOf(0) }
     var currentUrl by remember { mutableStateOf(loginUrl) }
     var googleSsoBlocked by remember { mutableStateOf(false) }
+    // Bumped when the renderer process dies: a WebView cannot survive that, so the login
+    // flow is restarted in a fresh one instead of leaving a dead blank view behind.
+    var webViewGeneration by remember { mutableIntStateOf(0) }
     val colors = LocalAppColors.current
     val context = LocalContext.current
 
@@ -180,78 +185,91 @@ fun ServiceLoginScreen(
             }
 
             if (loginUrl.isNotEmpty()) {
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                            )
-                            settings.apply {
-                                javaScriptEnabled = true
-                                domStorageEnabled = true
-                                @Suppress("DEPRECATION")
-                                databaseEnabled = true
-                                cacheMode = WebSettings.LOAD_DEFAULT
-                                userAgentString = DESKTOP_UA
-                                setSupportZoom(true)
-                                builtInZoomControls = true
-                                displayZoomControls = false
-                                useWideViewPort = true
-                                loadWithOverviewMode = true
-                                javaScriptCanOpenWindowsAutomatically = true
-                                setSupportMultipleWindows(false)
-                            }
-                            // Suppress X-Requested-With header so Google OAuth
-                            // does not detect this as an embedded WebView.
-                            WebViewDataCollector.suppressRequestedWithHeader(this)
-                            val cm = CookieManager.getInstance()
-                            cm.setAcceptCookie(true)
-                            cm.setAcceptThirdPartyCookies(this, true)
-                            webViewClient = object : WebViewClient() {
-                                override fun onPageFinished(view: WebView?, finishUrl: String?) {
-                                    super.onPageFinished(view, finishUrl)
-                                    finishUrl?.let {
-                                        currentUrl = it
-                                        // Only /gsi/ is the actual dead-end. The standard
-                                        // OAuth flow (/v3/signin/, /signin/oauth/) works
-                                        // fine in WebView so we must NOT block it.
-                                        if (it.contains("accounts.google.com/gsi/")) {
-                                            googleSsoBlocked = true
-                                            // Navigate back to login page so user can
-                                            // try the email login option instead.
-                                            view?.postDelayed({
-                                                view?.loadUrl(loginUrl)
-                                            }, 800)
+                key(webViewGeneration) {
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                )
+                                settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    @Suppress("DEPRECATION")
+                                    databaseEnabled = true
+                                    cacheMode = WebSettings.LOAD_DEFAULT
+                                    userAgentString = DESKTOP_UA
+                                    setSupportZoom(true)
+                                    builtInZoomControls = true
+                                    displayZoomControls = false
+                                    useWideViewPort = true
+                                    loadWithOverviewMode = true
+                                    javaScriptCanOpenWindowsAutomatically = true
+                                    setSupportMultipleWindows(false)
+                                }
+                                // Suppress X-Requested-With header so Google OAuth
+                                // does not detect this as an embedded WebView.
+                                WebViewDataCollector.suppressRequestedWithHeader(this)
+                                val cm = CookieManager.getInstance()
+                                cm.setAcceptCookie(true)
+                                cm.setAcceptThirdPartyCookies(this, true)
+                                webViewClient = object : WebViewClient() {
+                                    override fun onPageFinished(view: WebView?, finishUrl: String?) {
+                                        super.onPageFinished(view, finishUrl)
+                                        finishUrl?.let {
+                                            currentUrl = it
+                                            // Only /gsi/ is the actual dead-end. The standard
+                                            // OAuth flow (/v3/signin/, /signin/oauth/) works
+                                            // fine in WebView so we must NOT block it.
+                                            if (it.contains("accounts.google.com/gsi/")) {
+                                                googleSsoBlocked = true
+                                                // Navigate back to login page so user can
+                                                // try the email login option instead.
+                                                view?.postDelayed({
+                                                    view?.loadUrl(loginUrl)
+                                                }, 800)
+                                            }
+                                            // If we reached the actual service page (not /login),
+                                            // login succeeded — clear the banner.
+                                            val targetDomain = svc?.url?.let { u ->
+                                                Uri.parse(u).host
+                                            }
+                                            if (targetDomain != null &&
+                                                it.contains(targetDomain) &&
+                                                !it.contains("/login")) {
+                                                googleSsoBlocked = false
+                                            }
                                         }
-                                        // If we reached the actual service page (not /login),
-                                        // login succeeded — clear the banner.
-                                        val targetDomain = svc?.url?.let { u ->
-                                            Uri.parse(u).host
-                                        }
-                                        if (targetDomain != null &&
-                                            it.contains(targetDomain) &&
-                                            !it.contains("/login")) {
-                                            googleSsoBlocked = false
-                                        }
+                                        CookieManager.getInstance().flush()
                                     }
-                                    CookieManager.getInstance().flush()
+                                    override fun shouldOverrideUrlLoading(
+                                        view: WebView?,
+                                        request: WebResourceRequest?,
+                                    ): Boolean = false
+    
+                                    override fun onRenderProcessGone(
+                                        view: WebView?,
+                                        detail: RenderProcessGoneDetail?,
+                                    ): Boolean {
+                                        // Returning true is what keeps the app process alive.
+                                        (view?.parent as? ViewGroup)?.removeView(view)
+                                        view?.destroy()
+                                        webViewGeneration++
+                                        return true
+                                    }
                                 }
-                                override fun shouldOverrideUrlLoading(
-                                    view: WebView?,
-                                    request: WebResourceRequest?,
-                                ): Boolean = false
-                            }
-                            webChromeClient = object : WebChromeClient() {
-                                override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                    progress = newProgress
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                        progress = newProgress
+                                    }
                                 }
+                                loadUrl(loginUrl)
                             }
-                            loadUrl(loginUrl)
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }

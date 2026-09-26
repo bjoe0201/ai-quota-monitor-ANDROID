@@ -95,6 +95,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                         updateConfig(current.copy(authStatus = authMap))
                     }
                 }
+                // Asked before a service is reloaded after its renderer died, so a card the
+                // user disabled or got logged out of in the meantime stays down.
+                collector!!.setShouldReload { serviceKey -> isCollectable(serviceKey) }
             }
 
             // Start collectors in the same order as cards are displayed in Settings/Dashboard.
@@ -109,13 +112,24 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                     // so both pages send data to the same github_copilot DataStore key
                     if (key == "browser_github_copilot") {
                         collector!!.loadService(
-                            "browser_github_copilot_budgets",
+                            GITHUB_BUDGETS_KEY,
                             "https://github.com/settings/billing/budgets",
                         )
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Whether background collection for [serviceKey] is currently wanted.
+     * The GitHub budgets page is a second WebView for the Copilot card, so it follows that card.
+     */
+    private fun isCollectable(serviceKey: String): Boolean {
+        val key = if (serviceKey == GITHUB_BUDGETS_KEY) "browser_github_copilot" else serviceKey
+        val config = _ui.value.config
+        val svc = config.services[key] ?: return false
+        return svc.enabled && svc.url.isNotEmpty() && config.authStatus[key]?.loggedIn == true
     }
 
     /**
@@ -218,3 +232,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         super.onCleared()
     }
 }
+
+/** Second WebView backing the GitHub Copilot card; not a service of its own. */
+private const val GITHUB_BUDGETS_KEY = "browser_github_copilot_budgets"
