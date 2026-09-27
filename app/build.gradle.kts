@@ -49,7 +49,16 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Memory experiment switch (PLANS/03 T1/T2): clear WebView's resource cache at the end
+            // of each collection cycle. "none" (default) | "ram" = clearCache(false) | "disk" =
+            // clearCache(true). Pass -PcacheClearExperiment=ram when building a measurement APK.
+            val mode = (project.findProperty("cacheClearExperiment") as String?) ?: "none"
+            require(mode in setOf("none", "ram", "disk")) { "cacheClearExperiment must be none, ram or disk" }
+            buildConfigField("String", "CACHE_CLEAR_EXPERIMENT", "\"$mode\"")
+        }
         release {
+            buildConfigField("String", "CACHE_CLEAR_EXPERIMENT", "\"none\"")
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(

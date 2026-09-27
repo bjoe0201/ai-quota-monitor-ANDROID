@@ -172,6 +172,17 @@ class WebViewDataCollector(private val context: Context) {
         webViews[serviceKey] = wv
     }
 
+    /**
+     * Clear WebView's resource cache through a still-live page. The cache is shared by every
+     * WebView in the app, so any live one will do — but it must not have been destroyed yet.
+     * Returns false when [serviceKey] has no live page (e.g. its renderer died).
+     */
+    fun clearResourceCache(serviceKey: String, includeDiskFiles: Boolean): Boolean {
+        val wv = webViews[serviceKey] ?: return false
+        wv.clearCache(includeDiskFiles)
+        return true
+    }
+
     fun destroyAll() {
         webViews.keys.toList().forEach { destroyService(it) }
     }

@@ -2,8 +2,10 @@ package com.example.ai_quota_monitor_android.ui.dashboard
 
 import android.app.Application
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ai_quota_monitor_android.BuildConfig
 import com.example.ai_quota_monitor_android.data.model.DashboardConfig
 import com.example.ai_quota_monitor_android.data.model.ServiceResult
 import com.example.ai_quota_monitor_android.data.repository.ConfigRepository
@@ -135,7 +137,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun runCollectionCycle() = coroutineScope {
         val activeCollector = ensureCollector()
-        for (step in collectionSteps(_ui.value.config)) {
+        val steps = collectionSteps(_ui.value.config)
+        for ((index, step) in steps.withIndex()) {
             rendererDiedInStep = false
             // A child of the cycle: cancelling the cycle cancels the page it is waiting on,
             // while cancelling one step only moves the cycle on to the next.
@@ -143,6 +146,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             stepJob = job
             job.join()
             stepJob = null
+            if (index == steps.lastIndex) clearCacheForExperiment(activeCollector, step.serviceKey)
             activeCollector.destroyService(step.serviceKey)
             if (rendererDiedInStep) {
                 // Don't walk straight into the next page while the renderer is still unhealthy.
@@ -150,6 +154,22 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         rebuildResults()
+    }
+
+    /**
+     * Memory experiment (PLANS/03 T1/T2), off unless the debug APK was built with
+     * `-PcacheClearExperiment`. Runs once per cycle, after the last page has reported and before
+     * it is destroyed — clearCache needs a live WebView.
+     */
+    private fun clearCacheForExperiment(activeCollector: WebViewDataCollector, serviceKey: String) {
+        val includeDiskFiles = when (BuildConfig.CACHE_CLEAR_EXPERIMENT) {
+            "ram" -> false
+            "disk" -> true
+            else -> return
+        }
+        val cleared = activeCollector.clearResourceCache(serviceKey, includeDiskFiles)
+        Log.i(EXPERIMENT_TAG, "clearCache(includeDiskFiles=$includeDiskFiles) after $serviceKey: " +
+            if (cleared) "done" else "skipped, no live page")
     }
 
     /**
@@ -273,3 +293,6 @@ private const val PAGE_TIMEOUT_MS = 90_000L
 
 /** How long a page may stay quiet after reporting before it is considered done. */
 private const val SETTLE_MS = 20_000L
+
+/** Logcat tag for the cache-clear memory experiment; grep for it to line cycles up with samples. */
+private const val EXPERIMENT_TAG = "AiQuotaMemExp"

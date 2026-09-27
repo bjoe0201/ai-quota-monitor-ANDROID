@@ -1,6 +1,6 @@
 # DEVELOP.md — 開發與診斷交接
 
-最後更新：2026-09-27。本檔記錄「正在進行中的診斷」與「怎麼重現測試」，供下一次接手。
+最後更新：2026-09-28。本檔記錄「正在進行中的診斷」與「怎麼重現測試」，供下一次接手。
 已完成的根因分析與證據不在此重複，見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
 
 ## 目前狀態
@@ -20,6 +20,7 @@
 | OpenRouter 登入頁偵測不到 | 抽成 `isLoginUrl()`，補 `/sign-in` | `LoginPageDetectionTest`（含 6 個資料頁面的反向誤判測試） |
 | 三處硬編碼版號 | 改讀 `BuildConfig` | 截圖確認標題／底部狀態列／設定→關於 |
 | JS 重複注入與過度解析 | 安裝防護、host 白名單、XHR `{once:true}` | `app/src/test/js/injection-test.mjs` |
+| dataSync 前景服務背景 6 小時逾時 → 整個 App crash（`ForegroundServiceDidNotStopInTimeException`） | `onTimeout` 內 `stopSelf()`；`startForeground` 被拒時自行結束；`MainActivity.onStart` 重啟服務 | `device_config put activity_manager data_sync_fgs_timeout_duration 60000` 後切背景：舊版約 70 秒 crash，新版服務停止、App pid 不變，回前景服務重啟（2026-09-28）。測完以 `device_config delete` 還原 |
 
 ## 尚未解決的核心問題
 
@@ -39,18 +40,14 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 ## 下一次的第一件事
 
-**量測 JS 修復後的斜率。** JS 修復（不再對每個 JSON 做兩份 clone）已安裝但**還沒量過**——上一次量測因為安裝靜默失敗，量到的仍是舊版。
+**T0 已完成（2026-09-28）：JS 修復沒有降低斜率。** 45 分鐘、兩代 renderer，空檔底線仍約每輪 +190 MB；第一代約 29 分鐘時在 1.45 GB 左右被終止。細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.1。
 
-這是目前唯一能區分兩種成因的實驗：
-
-- 斜率明顯下降 → 主因是「攔截器對所有 JSON clone + 重複注入」，可能不需要 A′
-- 斜率幾乎不變 → 主因是 Chromium allocator 的保留與碎片化，**A′ 是唯一解**
-
-量測方式見下方「實機量測」，至少跑 5 輪（約 25 分鐘），比對空檔底線的每輪增幅與上表的 +190 MB。
+依測試計畫，下一步是 **T1／T2：每輪結束時 `clearCache(false)`／`clearCache(true)` 對照**，一次只改一項。開關已實作：`gradlew.bat assembleDebug -PcacheClearExperiment=ram`（T1）或 `=disk`（T2），預設與 release 為 `none`；每輪會以 logcat tag `AiQuotaMemExp` 記錄一次清除。T1／T2 都無效時，再往 T5（逐服務隔離）、T6（計畫性回收 renderer）或 T7（輕量頁）走；不要由 T0 直接跳到「A′ 是唯一解」。
 
 ## 待辦（建議順序）
 
-1. 量測 JS 修復後的斜率（見上）
+1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ **T1／T2 快取對照**
+   - **OpenAI billing 步驟每輪都耗滿 90 秒逾時**，確認是否根本沒拿到資料
 2. **登入與背景收集互斥** — 目前進入登入畫面不會暫停收集迴圈，可能同時有 1 個背景頁 + 1 個登入頁。`MainActivity` 只切換 screen state，`DashboardViewModel` 的收集 job 不受影響
 3. **endpoint 層級白名單** — 目前只做到 host 層級。要再收緊必須逐服務確認實際 API 路徑，否則可能悄悄停掉正常資料
 4. **`WebViewCompat.addDocumentStartJavaScript`** — 比 `onPageStarted` 更有保證（官方承諾在頁面自身腳本前執行），但會改變注入語義，需保留「原站替換 fetch 後補注入」的能力，單獨處理並單獨量測
