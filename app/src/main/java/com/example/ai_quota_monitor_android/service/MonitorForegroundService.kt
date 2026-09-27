@@ -1,5 +1,6 @@
 package com.example.ai_quota_monitor_android.service
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -40,7 +41,15 @@ class MonitorForegroundService : Service() {
             .setOngoing(true)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: ForegroundServiceStartNotAllowedException) {
+            // Android 15+: the dataSync budget for this 24 h window is spent (see onTimeout), or
+            // a sticky restart happened while the app was in the background. MainActivity starts
+            // us again when the user returns, which is also when the budget is refilled.
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         if (serverEnabled && httpServer == null) {
             try {
@@ -51,6 +60,15 @@ class MonitorForegroundService : Service() {
         }
 
         return START_STICKY
+    }
+
+    /**
+     * Android 15+ lets a dataSync foreground service run for 6 hours in the background per 24 h.
+     * When that runs out the system calls this and gives the service a few seconds to stop;
+     * otherwise it kills the whole app with ForegroundServiceDidNotStopInTimeException.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        stopSelf()
     }
 
     override fun onDestroy() {

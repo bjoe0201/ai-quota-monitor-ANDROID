@@ -26,7 +26,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        startMonitorService()
 
         setContent {
             val uiState by viewModel.uiState.collectAsState()
@@ -52,6 +51,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Start (or re-start) the monitor service every time the Activity becomes visible, not only in
+     * onCreate: on Android 15+ the service stops itself when its background time budget runs out,
+     * and with singleTask the user returning does not recreate the Activity. Starting an already
+     * running service is harmless — onStartCommand is idempotent.
+     */
+    override fun onStart() {
+        super.onStart()
+        startMonitorService()
     }
 
     /**
