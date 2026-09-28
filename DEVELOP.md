@@ -42,11 +42,15 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 **T0 已完成（2026-09-28）：JS 修復沒有降低斜率。** 45 分鐘、兩代 renderer，空檔底線仍約每輪 +190 MB；第一代約 29 分鐘時在 1.45 GB 左右被終止。細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.1。
 
-依測試計畫，下一步是 **T1／T2：每輪結束時 `clearCache(false)`／`clearCache(true)` 對照**，一次只改一項。開關已實作：`gradlew.bat assembleDebug -PcacheClearExperiment=ram`（T1）或 `=disk`（T2），預設與 release 為 `none`；每輪會以 logcat tag `AiQuotaMemExp` 記錄一次清除。T1／T2 都無效時，再往 T5（逐服務隔離）、T6（計畫性回收 renderer）或 T7（輕量頁）走；不要由 T0 直接跳到「A′ 是唯一解」。
+**T1／T2 也已完成（2026-09-28）：兩者都無效。** 每輪 `clearCache(false)` 為 +181 MB／輪，`clearCache(true)` 為 +188 MB／輪，與 T0 的 +190 相同；renderer 壽命三者都約 29 分鐘。WebView HTTP 資源快取（RAM 與磁碟）不是累積來源。細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.2、§8.4。開關仍保留（`-PcacheClearExperiment=ram|disk`，預設 `none`），之後的量測一律用預設值建置。
+
+下一步依計畫進 **T5（逐服務隔離）**，找出哪個服務頁面貢獻了累積；需要短期控制時另做 **T6（計畫性回收 renderer）**。不要直接跳到「A′ 是唯一解」。
+
+**建置環境陷阱（2026-09-28）：** 若 `JAVA_HOME` 指向的 Android Studio 內附 JBR 不完整（缺 `lib\jvm.cfg`，例如 Studio 更新中斷），`gradlew.bat` 會直接失敗。暫時在該次指令內把 `$env:JAVA_HOME` 指向另一份完整的 JDK 17+，或修復／重裝 Android Studio。
 
 ## 待辦（建議順序）
 
-1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（2026-09-28 完成：無差異，PLANS/03 §8.2）→ **T2 `clearCache(true)`**
+1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ **T5 逐服務隔離**
    - **OpenAI billing 步驟每輪都耗滿 90 秒逾時**，確認是否根本沒拿到資料
 2. **登入與背景收集互斥** — 目前進入登入畫面不會暫停收集迴圈，可能同時有 1 個背景頁 + 1 個登入頁。`MainActivity` 只切換 screen state，`DashboardViewModel` 的收集 job 不受影響
 3. **endpoint 層級白名單** — 目前只做到 host 層級。要再收緊必須逐服務確認實際 API 路徑，否則可能悄悄停掉正常資料
