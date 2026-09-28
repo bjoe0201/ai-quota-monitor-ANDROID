@@ -91,7 +91,7 @@ Get-Item $apk
 Get-FileHash $apk -Algorithm SHA256
 
 # Signature check
-$sdk = "C:\Users\bjoe\AppData\Local\Android\Sdk"
+$sdk = "$env:LOCALAPPDATA\Android\Sdk"
 $apksigner = Get-ChildItem "$sdk\build-tools" -Recurse -Filter apksigner.bat | Sort-Object FullName -Descending | Select-Object -First 1
 & $apksigner.FullName verify --verbose $apk
 ```
