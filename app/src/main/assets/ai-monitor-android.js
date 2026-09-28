@@ -205,11 +205,13 @@
 
     // ── Fetch/XHR Interceptor ────────────────────────
 
+    // hostMatch lists every host a service's data can come from, which is not always the page's
+    // own host: OpenAI's billing page fetches its figures from api.openai.com.
     var RULES = {
-        openai_billing:  { hostMatch: 'platform.openai.com', transform: transformOpenAI },
-        claude_usage:    { hostMatch: 'claude.ai',           transform: transformClaudeUsage },
-        claude_billing:  { hostMatch: 'platform.claude.com', transform: transformClaudeBilling },
-        github_copilot:  { hostMatch: 'github.com',          transform: transformGitHubCopilot },
+        openai_billing:  { hostMatch: ['platform.openai.com', 'api.openai.com'], transform: transformOpenAI },
+        claude_usage:    { hostMatch: ['claude.ai'],           transform: transformClaudeUsage },
+        claude_billing:  { hostMatch: ['platform.claude.com'], transform: transformClaudeBilling },
+        github_copilot:  { hostMatch: ['github.com'],          transform: transformGitHubCopilot },
     };
 
     var rule = RULES[PAGE.key];
@@ -235,11 +237,13 @@
         // cloned and parsed, and clone() buffers the whole body.
         function isInteresting(url) {
             if (!url) return false;
+            var target;
             try {
-                return new URL(url, location.href).hostname.indexOf(rule.hostMatch) >= 0;
+                target = new URL(url, location.href).hostname;
             } catch (e) {
-                return url.indexOf(rule.hostMatch) >= 0;
+                target = url;
             }
+            return rule.hostMatch.some(function (host) { return target.indexOf(host) >= 0; });
         }
 
         function handleJson(url, json) {

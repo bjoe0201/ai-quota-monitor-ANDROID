@@ -10,11 +10,12 @@ function check(name, actual, expected) {
     results.push({ name, actual, expected, ok });
 }
 
-function newEnv() {
+function newEnv(pageUrl = 'https://claude.ai/settings/usage') {
     const counts = { clones: 0, transforms: 0 };
     const g = globalThis;
     g.window = g;
-    g.location = { hostname: 'claude.ai', pathname: '/settings/usage', hash: '', href: 'https://claude.ai/settings/usage' };
+    const page = new URL(pageUrl);
+    g.location = { hostname: page.hostname, pathname: page.pathname, hash: page.hash, href: page.href };
     g.document = { querySelectorAll: () => [], body: null, documentElement: {}, addEventListener() {} };
     g.MutationObserver = class { observe() {} disconnect() {} };
     g.AndroidBridge = { postData() {} };
@@ -68,6 +69,21 @@ inject(2);
 await globalThis.fetch('https://telemetry.example.com/v1/events');
 await new Promise((r) => setTimeout(r, 0));
 check('第三方 host → clone 0 次', env.counts.clones, 0);
+
+// OpenAI's billing page loads its figures from api.openai.com, not from its own host
+const OPENAI_PAGE = 'https://platform.openai.com/settings/organization/billing/overview';
+env = newEnv(OPENAI_PAGE);
+inject(1);
+await globalThis.fetch('https://api.openai.com/v1/dashboard/billing/credit_grants');
+await new Promise((r) => setTimeout(r, 0));
+check('OpenAI 頁面的 api.openai.com 帳務回應 → clone 1 次', env.counts.clones, 1);
+
+// ...while the same page's telemetry on other hosts is still skipped
+env = newEnv(OPENAI_PAGE);
+inject(1);
+await globalThis.fetch('https://chatgpt.com/ces/v1/telemetry/intake');
+await new Promise((r) => setTimeout(r, 0));
+check('OpenAI 頁面的 chatgpt.com 遙測 → clone 0 次', env.counts.clones, 0);
 
 // A reused XHR object must not accumulate load listeners
 env = newEnv();
