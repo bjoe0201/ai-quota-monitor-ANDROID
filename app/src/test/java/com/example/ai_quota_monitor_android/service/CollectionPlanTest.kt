@@ -89,4 +89,44 @@ class CollectionPlanTest {
         assertEquals("github_copilot", steps[1].sourceKey)
         assertEquals("https://github.com/settings/billing/budgets", steps[1].url)
     }
+
+    @Test
+    fun `isolating one service collects only that service`() {
+        val cfg = config(
+            services = mapOf(
+                "browser_openai" to service("openai_billing"),
+                "browser_openrouter" to service("openrouter"),
+            ),
+        )
+
+        assertEquals(
+            listOf(CollectionStep("browser_openrouter", "https://example.test/openrouter", "openrouter")),
+            collectionSteps(cfg, only = "browser_openrouter"),
+        )
+    }
+
+    @Test
+    fun `isolating github copilot keeps its budgets page`() {
+        val cfg = config(
+            services = mapOf(
+                "browser_github_copilot" to service("github_copilot", "https://github.com/settings/copilot"),
+                "browser_openai" to service("openai_billing"),
+            ),
+        )
+
+        assertEquals(
+            listOf("browser_github_copilot", GITHUB_BUDGETS_KEY),
+            collectionSteps(cfg, only = "browser_github_copilot").map { it.serviceKey },
+        )
+    }
+
+    @Test
+    fun `isolating a service that would not be collected yields no steps`() {
+        val cfg = config(
+            services = mapOf("browser_openai" to service("openai_billing")),
+            loggedIn = emptyList(),
+        )
+
+        assertEquals(emptyList<CollectionStep>(), collectionSteps(cfg, only = "browser_openai"))
+    }
 }

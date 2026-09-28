@@ -137,15 +137,25 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun runCollectionCycle() = coroutineScope {
         val activeCollector = ensureCollector()
-        val steps = collectionSteps(_ui.value.config)
+        val steps = collectionSteps(_ui.value.config, only = isolatedService)
+        if (isolatedService != null) {
+            Log.i(EXPERIMENT_TAG, "isolated to $isolatedService: ${steps.map { it.serviceKey }}")
+        }
         for ((index, step) in steps.withIndex()) {
             rendererDiedInStep = false
+            val startedAt = SystemClock.elapsedRealtime()
+            var gotData = false
             // A child of the cycle: cancelling the cycle cancels the page it is waiting on,
             // while cancelling one step only moves the cycle on to the next.
-            val job = launch { collectStep(activeCollector, step) }
+            val job = launch { gotData = collectStep(activeCollector, step) }
             stepJob = job
             job.join()
             stepJob = null
+            if (BuildConfig.DEBUG) {
+                Log.i(EXPERIMENT_TAG, "step ${step.serviceKey} data=$gotData " +
+                    "${SystemClock.elapsedRealtime() - startedAt}ms" +
+                    if (rendererDiedInStep) " renderer-gone" else "")
+            }
             if (index == steps.lastIndex) clearCacheForExperiment(activeCollector, step.serviceKey)
             activeCollector.destroyService(step.serviceKey)
             if (rendererDiedInStep) {
@@ -179,11 +189,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
      *
      * The quiet window matters because some pages report in stages — OpenRouter, for instance,
      * sends its balance and then navigates to `/activity` for the usage figures.
+     *
+     * Returns whether the page reported anything before the step ended.
      */
     private suspend fun collectStep(
         activeCollector: WebViewDataCollector,
         step: CollectionStep,
-    ) = coroutineScope {
+    ): Boolean = coroutineScope {
         val updates = Channel<Unit>(Channel.CONFLATED)
         // UNDISPATCHED: subscribe before the page starts loading, so no update is missed.
         val subscription = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -202,6 +214,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 withTimeoutOrNull(wait) { updates.receive() } ?: break
                 gotData = true
             }
+            gotData
         } finally {
             subscription.cancel()
         }
@@ -286,6 +299,18 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         collector?.destroyAll()
         super.onCleared()
     }
+
+    companion object {
+        /**
+         * Debug launch extra naming the one service key to collect (PLANS/03 T5), e.g.
+         * `adb shell am start -n <pkg>/.MainActivity --es mem_isolate_service browser_openai`.
+         */
+        const val EXTRA_ISOLATE_SERVICE = "mem_isolate_service"
+
+        /** Set from [EXTRA_ISOLATE_SERVICE]; null collects every service as usual. */
+        @Volatile
+        var isolatedService: String? = null
+    }
 }
 
 /** Hard cap for one page; some SPAs need 30–60 s before they report anything. */
@@ -294,5 +319,5 @@ private const val PAGE_TIMEOUT_MS = 90_000L
 /** How long a page may stay quiet after reporting before it is considered done. */
 private const val SETTLE_MS = 20_000L
 
-/** Logcat tag for the cache-clear memory experiment; grep for it to line cycles up with samples. */
+/** Logcat tag for the memory experiments; grep for it to line cycles and steps up with samples. */
 private const val EXPERIMENT_TAG = "AiQuotaMemExp"

@@ -21,10 +21,14 @@ private const val GITHUB_BUDGETS_URL = "https://github.com/settings/billing/budg
  *
  * Only one page is loaded at a time, so the cycle walks this list and tears each page down
  * before moving on. Cards in the user's display order are collected in that same order.
+ *
+ * [only] restricts the plan to one service key, for the per-service memory measurement
+ * (PLANS/03 T5); that service is still skipped if it would not normally be collected.
  */
-fun collectionSteps(config: DashboardConfig): List<CollectionStep> {
+fun collectionSteps(config: DashboardConfig, only: String? = null): List<CollectionStep> {
     val steps = mutableListOf<CollectionStep>()
     for (key in config.effectiveServiceOrder()) {
+        if (only != null && key != only) continue
         val svc = config.services[key] ?: continue
         if (!svc.enabled || svc.url.isEmpty()) continue
         if (config.authStatus[key]?.loggedIn != true) continue

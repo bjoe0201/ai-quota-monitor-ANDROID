@@ -26,6 +26,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Memory experiment (PLANS/03 T5), debug builds only: collect a single service.
+        // Read before the ViewModel is first touched, since its init starts the collection loop.
+        if (BuildConfig.DEBUG) {
+            intent.getStringExtra(DashboardViewModel.EXTRA_ISOLATE_SERVICE)?.let {
+                DashboardViewModel.isolatedService = it
+            }
+        }
 
         setContent {
             val uiState by viewModel.uiState.collectAsState()
