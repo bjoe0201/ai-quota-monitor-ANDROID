@@ -221,6 +221,26 @@ renderer 必須透過 App 的程序連線關係確認歸屬，不可直接把所
 - 結論：RAM 資源快取不是每輪 +190 MB 的來源。依 §5，下一步 T2（`clearCache(true)`）。
 - 量測瑕疵：第一次 T1 被 Android Studio 的 Run／Stop 中斷（03:34–03:35 兩次外部 `am force-stop`），已作廢重跑。重跑時前一次的取樣腳本未被終止，03:37–04:17 有兩個取樣器同時執行（每 15 秒兩次 `dumpsys meminfo`）。兩組數據一致，但取樣負載比 T0 高；T2 起需在開始前確認沒有殘留的取樣程序。
 
+### 8.3 過夜觀察（2026-09-27 夜 → 2026-09-28 16:40，非對照測試）
+
+T1 量測結束後 App 未停止，整夜放著跑；隔天以 logcat（events buffer 回溯至 09-27、system buffer 只到 09-28 09:15、main buffer 只到 15:33）與當下取樣回推。**不是依 §3 紀律設計的測試**，數據只作為線索，不列入上表。
+
+- 安裝版本：T1 build（`-PcacheClearExperiment=ram`），lastUpdateTime 03:37:33；App PID 17133 自 03:37:35 起全程不變，crash buffer 無本 App 紀錄。
+- 螢幕：04:27 關閉，16:31 才重新開啟（中間僅 09:33 亮 20 秒）。
+- renderer 歸屬以 `am_proc_start` 的 `{com.example.ai_quota_monitor_android/...SandboxedProcessService0:N}` 及 `u0a228iNN` 確認。
+
+| 時段 | App 狀態 | renderer 世代 |
+| --- | --- | --- |
+| 03:37–10:04 | 前景服務執行中；04:27 後螢幕關閉 | `:0`→`:12` 共 12 次換代，間隔 29–34 分鐘，與 T0／T1 相同；09:30、10:04 兩次死亡後 App 叫起 WebView `CrashReceiverService`（更早的死因已超出 system buffer） |
+| 10:26 | dataSync 前景服務達上限（`am_foreground_service_timed_out`，約 6.8 小時）→ `STOP_SERVICE`，**App 未 crash** | —（`ForegroundServiceDidNotStopInTimeException` 修正在過夜條件下再次驗證） |
+| 10:26–16:32 | 無前景服務、螢幕關閉；UID idle，App 為 cached（renderer adj 900） | `:12`（10:04 起）存活 **4h10m**，14:14 被 MIUI `ScreenOffCPUCheckKill`（1 小時內用 CPU 6.85% > 2%）終止，當時 RSS 約 815 MB，**不是 OOM**；`:13`（14:14 起）至 16:37 存活 2h22m，RSS 約 530 MB、PSS 約 587 MB（`Unknown` 約 497 MB），VmSwap 僅 33 MB |
+| 16:32 起 | 使用者開螢幕 → `MainActivity.onStart` 重啟前景服務 | 同一個 `:13` 在 16:37→16:40 由 531 → 880 MB |
+
+- 收集迴圈在無前景服務期間仍持續：main buffer 可見 15:38–16:35 每約 9.5 分鐘一筆 `AiQuotaMemExp`。依此頻率，`:13` 在開螢幕前至少跑了十餘輪，若維持 +190 MB／輪早應超過 1.5 GB。
+- **線索（未驗證）**：App／renderer 在背景（低優先度、螢幕關閉）時，跨輪累積明顯變慢；回到前景後恢復快速增長。可能與 Chromium 對背景 renderer 的節流或記憶體回收有關，也可能是背景時頁面根本沒有完整載入或渲染。
+- **未確認**：背景期間各卡片是否真的收到資料（未檢視卡片、main buffer 未涵蓋 10:26–15:33）；螢幕關閉但有前景服務的 03:37–10:04 仍照常換代，所以單純「螢幕關閉」不足以解釋。
+- 可能的後續對照（排在 T2 之後，一次只改一項）：前景服務執行中但 Activity 在背景 vs 前景；取樣同時記錄各步驟是否回報資料。
+
 其餘測試執行時追加列。失敗、未執行、指標不可取得與不適用必須分開記錄；不填推測數據。
 
 ## 9. 官方參考
