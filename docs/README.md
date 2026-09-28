@@ -15,6 +15,7 @@
 | 編號 | 文件 | 主題 | 狀態 |
 | --- | --- | --- | --- |
 | 01 | [WebView Renderer OOM 導致 App 整個關閉](01-webview-renderer-oom-crash.md) | 背景 WebView 共用的 renderer 記憶體耗盡而死亡，且未實作 `onRenderProcessGone()`，導致整個 App 被終止。含完整證據、修復內容、可重現的驗證步驟與診斷指令 | 韌性缺陷已修復；記憶體模型缺陷待處理 |
+| 02 | [WebView renderer 記憶體累積：外部資料與判讀](02-webview-renderer-memory-references.md) | 查到的外部資料（claude.ai 無相關回報、Android 官方 destroy 行為、Chromium PartitionAlloc、類似的小米平板案例、renderer priority），以及它們對跨輪累積能說明與不能說明的部分 | 參考資料；隨 T5／T6 結果更新 |
 
 ## 命名規則
 
