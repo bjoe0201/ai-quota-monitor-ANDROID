@@ -156,7 +156,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                     "${SystemClock.elapsedRealtime() - startedAt}ms" +
                     if (rendererDiedInStep) " renderer-gone" else "")
             }
-            if (index == steps.lastIndex) clearCacheForExperiment(activeCollector, step.serviceKey)
+            if (index == steps.lastIndex) {
+                clearCacheForExperiment(activeCollector, step.serviceKey)
+                if (!rendererDiedInStep) recycleRendererForExperiment(activeCollector, step.serviceKey)
+            }
             activeCollector.destroyService(step.serviceKey)
             if (rendererDiedInStep) {
                 // Don't walk straight into the next page while the renderer is still unhealthy.
@@ -180,6 +183,23 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         val cleared = activeCollector.clearResourceCache(serviceKey, includeDiskFiles)
         Log.i(EXPERIMENT_TAG, "clearCache(includeDiskFiles=$includeDiskFiles) after $serviceKey: " +
             if (cleared) "done" else "skipped, no live page")
+    }
+
+    /**
+     * Renderer recycling PoC (PLANS/03 T6), off unless the debug APK was built with
+     * `-ProutineRendererRecycle=true`. Runs once per cycle through the last page, while it is
+     * still alive: terminate() needs a WebView to reach the renderer, and the next cycle's
+     * first page then starts a fresh renderer.
+     */
+    private suspend fun recycleRendererForExperiment(
+        activeCollector: WebViewDataCollector,
+        serviceKey: String,
+    ) {
+        if (!BuildConfig.ROUTINE_RENDERER_RECYCLE) return
+        val startedAt = SystemClock.elapsedRealtime()
+        val outcome = activeCollector.recycleRenderer(serviceKey, RECYCLE_TIMEOUT_MS)
+        Log.i(EXPERIMENT_TAG, "recycle renderer after $serviceKey: $outcome " +
+            "${SystemClock.elapsedRealtime() - startedAt}ms")
     }
 
     /**
@@ -318,6 +338,9 @@ private const val PAGE_TIMEOUT_MS = 90_000L
 
 /** How long a page may stay quiet after reporting before it is considered done. */
 private const val SETTLE_MS = 20_000L
+
+/** How long to wait for onRenderProcessGone after terminating the renderer on purpose. */
+private const val RECYCLE_TIMEOUT_MS = 5_000L
 
 /** Logcat tag for the memory experiments; grep for it to line cycles and steps up with samples. */
 private const val EXPERIMENT_TAG = "AiQuotaMemExp"

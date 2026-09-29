@@ -188,7 +188,7 @@ renderer 必須透過 App 的程序連線關係確認歸屬，不可直接把所
 - [ ] 完成 T4 登入互斥驗證。
 - [x] 完成 T5 逐服務隔離。（2026-09-29：每個服務都直線累積、加總 ≈ 全部一起跑，見 §8.5）
 - [ ] 視需要完成 T8 profile（JS heap／DOM／worker 與 native 的歸屬）。
-- [ ] 視需要完成 T6 回收 PoC。
+- [x] 完成 T6 回收 PoC。（2026-09-30：各代峰值 710–816 MB 持平、0 非計畫死亡，見 §8.6）
 - [ ] 視需要完成 T7 單服務輕量收集。
 - [ ] 完成長跑、回歸與最終方案判定。
 
@@ -198,6 +198,7 @@ renderer 必須透過 App 的程序連線關係確認歸屬，不可直接把所
 | T1 | 2026-09-28 03:37–04:22／`a80885e` + `-PcacheClearExperiment=ram` | 建置後確認 `CACHE_CLEAR_EXPERIMENT="ram"`；lastUpdateTime 03:37:33；logcat 每輪一筆 `clearCache(includeDiskFiles=false) ... done`（8／8 輪） | 45 分鐘、兩代 renderer、約 8 輪 | 空檔底線（RSS）第一代 548→728→923→1,108→1,272 MB，平均 **+181 MB／輪**；第二代 389→667→840 MB | 0 計畫／1 非計畫（第一代約 29 分鐘、RSS 約 1.35 GB／PSS 約 1.5 GB 時終止；App PID 不變） | 收集迴圈持續運作；量測中未檢視卡片內容 | **與 T0 無差異**：RAM 資源快取不是累積來源 → T2 |
 | T2 | 2026-09-28 21:23–22:09／`e2048de` + `-PcacheClearExperiment=disk` | 建置後確認 `CACHE_CLEAR_EXPERIMENT="disk"`；已安裝 base.apk SHA-256 與建置產物一致；lastUpdateTime 21:22:43；logcat 每輪一筆 `clearCache(includeDiskFiles=true) ... done`（8／8 輪） | 46 分鐘、兩代 renderer、約 8 輪 | 空檔底線（RSS）第一代 574→772→971→1,158→1,325 MB，平均 **+188 MB／輪**；第二代 384→609→812 MB | 0 計畫／1 非計畫（第一代 29 分 04 秒、RSS 約 1.44 GB／PSS 約 1.5 GB 時終止；App PID 不變） | 收集迴圈持續運作；量測中未檢視卡片內容 | **與 T0／T1 無差異**：WebView 資源快取（RAM 與磁碟）都不是累積來源 → T5／T6 |
 | T5 | 2026-09-28 22:33–2026-09-29 00:03（Claude.ai、ChatGPT）、2026-09-29 21:38–23:09（Claude API、OpenRouter、OpenAI）／含隔離開關與 OpenAI host 修正的 debug build（兩者後於 `01927db`、`7f210c4` commit） | 已安裝 base.apk 內 `ai-monitor-android.js` SHA-256 與 HEAD 一致（Kotlin 部分未逐位比對）；lastUpdateTime 2026-09-29 00:10:41；logcat 每段 `isolated to <key>` | 每服務 30 分鐘、12 輪，各一代 renderer | 空檔底線平均：ChatGPT **+83**、Claude.ai **+44**、OpenRouter **+37.5**、Claude API **+24**、OpenAI **+17** MB／輪；加總 +205 | 0／0（最高 RSS 1,237 MB，ChatGPT） | 補跑三段 37／37 步 `data=true`；09-28 的 OpenAI 段全無資料，作廢 | **每個服務都累積、皆不收斂**，加總 ≈ 一起跑 → 非單一服務問題 → T6 |
+| T6 | 2026-09-30 00:09–00:55／`cafb0a8` + 回收 PoC（與加入 PoC 的 commit 同內容）+ `-ProutineRendererRecycle=true` | 建置後確認 `ROUTINE_RENDERER_RECYCLE = true`；裝置上 base.apk SHA-256 與建置產物一致；lastUpdateTime 00:09:34 | 45 分鐘、10 輪、10 代 renderer | 各代峰值（RSS）738、778、816、790、788、710、797、793、785、800 MB，**不隨輪數上升**；空檔 renderer 不存在 | 10 計畫（皆 `DONE`，290–355 ms）／**0 非計畫** | 可取得的 34 步全 `data=true`；App PID 不變 | **有效**：跨輪累積消失 → 預設開啟 + 長跑驗證 |
 
 ### 8.1 T0 細節（2026-09-28）
 
@@ -275,6 +276,17 @@ T1 量測結束後 App 未停止，整夜放著跑；隔天以 logcat（events b
   2. 沒有任何服務的斜率為 0 或趨緩，後半段與全程接近。依 §4 T5 的判定，成長並非「跟隨某服務」，而是**每個頁面載入都在 renderer 留下與頁面工作量相關的量**（同一 OpenAI 頁面，無資料 +6.5、有資料 +17）。
   3. 這支持「renderer 程序跨頁面保留」而非「特定網站洩漏」（頁面每輪都被銷毀，網站 JS 洩漏無法跨輪存活）。但仍未分辨是 JS heap 類（V8 isolate 層級）還是 native 配置器保留，需要 T8 profile 才能歸因。
 - 下一步：T6（計畫性 renderer 回收）對所有服務一體有效，列為優先；T7 可降低 ChatGPT、Claude.ai 等重頁面的單輪成本，作為 T6 的補充，不是替代。
+
+### 8.6 T6 細節（2026-09-30）
+
+- 實作：每輪最後一步（OpenRouter）回報後、銷毀前，透過該頁面取得 `webViewRenderProcess` 並 `terminate()`。呼叫前以 `PlannedRecycleTracker` 標記該 WebView，它的 `onRenderProcessGone` 只做清理並通知完成，不觸發 `onRendererGone`（不取消步驟、不退避、不判定登出）。等待上限 5 秒；拿不到 handle、`terminate()` 回傳 false、逾時都照原本銷毀。登入畫面開著時跳過（共用 renderer）。開關 `-ProutineRendererRecycle=true`，僅 debug 有效。
+- 條件：安裝後冷啟動、五服務一起跑、全程前景、螢幕常亮；開跑前確認沒有殘留取樣器。
+- renderer：`SandboxedProcessService0:0`→`:9` 共 10 代，每輪一代；PID 8652→13810。每次回收 logcat 為 `recycle renderer after browser_openrouter: DONE`，耗時 290–355 ms。無 `renderer-gone`、crash buffer 無本 App 紀錄。
+- 記憶體：各代峰值（RSS／PSS）738／645、778／681、816／718、790／691、788／690、710／618、797／700、793／697、785／690、800／700 MB。T0 同期為 701→1,475 MB 逐輪升高。空檔時（180 筆中 78 筆）沒有 renderer 程序；App 主程序空檔 PSS 196→154 MB，不累積。MemAvailable 最低 894 MB（T0 約 454 MB）。
+- 資料：logcat main buffer 在量測中途覆寫（00:17–00:30 的步驟紀錄遺失，renderer 換代由 ActivityManager 紀錄補足）；可取得的 34 步全部 `data=true`，DevTools page 數全程 ≤ 1。
+- 成本：每輪第一步（Claude.ai）28.4–29.0 秒，T5 中 renderer 沿用時為 26.8–27.5 秒，冷啟動約 +1.5 秒／輪。首輪 32 秒含 App 冷啟動。耗電未量。
+- 判讀：依 §7「計畫回收方案」的條件——各代峰值範圍穩定、舊程序退出、空檔資源釋放、無非計畫 OOM、App 主程序不累積、資料正確——本次 45 分鐘全部符合。尚未驗證：多小時／過夜、背景與螢幕關閉、登入畫面開啟期間（回收應跳過）、登入狀態跨多代 renderer 是否維持（本次每步都有資料，間接表示 Cookie 未遺失）。
+- 量測瑕疵：驅動腳本用 `logcat --regex` 過濾，但 `--regex` 只比對訊息內容、不比對 tag，`AiQuotaMemExp` 行未被即時擷取，事後從 buffer 以 `-s AiQuotaMemExp:I` 補撈；腳本已改為以 tag 過濾。
 
 其餘測試執行時追加列。失敗、未執行、指標不可取得與不適用必須分開記錄；不填推測數據。
 

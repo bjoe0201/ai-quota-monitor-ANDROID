@@ -11,7 +11,10 @@ import android.webkit.WebViewClient
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.example.ai_quota_monitor_android.data.repository.DataStoreRepository
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Manages background WebViews that load AI service pages and inject JS
@@ -29,6 +32,8 @@ class WebViewDataCollector(private val context: Context) {
     private var jsScript: String? = null
 
     private val expiryGuard = SessionExpiryGuard()
+    private val recycleTracker = PlannedRecycleTracker<WebView>()
+    private var recycleDone: CompletableDeferred<Unit>? = null
 
     fun setOnSessionExpired(listener: (String) -> Unit) {
         onSessionExpired = listener
@@ -161,7 +166,12 @@ class WebViewDataCollector(private val context: Context) {
                         webViews.remove(serviceKey)
                     }
                     view.destroy()
-                    onRendererGone?.invoke(serviceKey)
+                    if (recycleTracker.onGone(view)) {
+                        // We terminated it on purpose: no backoff, no step to cancel.
+                        recycleDone?.complete(Unit)
+                    } else {
+                        onRendererGone?.invoke(serviceKey)
+                    }
                     return true
                 }
             }
@@ -181,6 +191,31 @@ class WebViewDataCollector(private val context: Context) {
         val wv = webViews[serviceKey] ?: return false
         wv.clearCache(includeDiskFiles)
         return true
+    }
+
+    /**
+     * End the shared renderer process through [serviceKey]'s still-live page, so the next page
+     * starts in a fresh one (PLANS/03 T6). Every page ever loaded leaves memory behind in the
+     * renderer even after it is destroyed, and nothing short of ending the process returns it.
+     *
+     * Skipped while a login page is open: it shares the renderer and would die with it. On
+     * [RecycleOutcome.TIMED_OUT] the page is still registered; the caller destroys it as usual.
+     */
+    suspend fun recycleRenderer(serviceKey: String, timeoutMs: Long): RecycleOutcome {
+        if (openLoginPages.get() > 0) return RecycleOutcome.LOGIN_OPEN
+        val wv = webViews[serviceKey] ?: return RecycleOutcome.NO_PAGE
+        val renderer = wv.webViewRenderProcess ?: return RecycleOutcome.NO_HANDLE
+        val done = CompletableDeferred<Unit>()
+        recycleDone = done
+        recycleTracker.mark(wv)
+        if (!renderer.terminate()) {
+            recycleTracker.onGone(wv) // drop the mark: no callback is coming
+            recycleDone = null
+            return RecycleOutcome.REFUSED
+        }
+        val finished = withTimeoutOrNull(timeoutMs) { done.await() } != null
+        recycleDone = null
+        return if (finished) RecycleOutcome.DONE else RecycleOutcome.TIMED_OUT
     }
 
     fun destroyAll() {
@@ -215,6 +250,21 @@ class WebViewDataCollector(private val context: Context) {
      * Bridge class exposed to JavaScript as window.AndroidBridge.
      * JS calls AndroidBridge.postData(source, jsonString) to send data back.
      */
+    enum class RecycleOutcome {
+        /** The renderer was terminated and our page reported it gone. */
+        DONE,
+        /** terminate() succeeded but no onRenderProcessGone arrived in time. */
+        TIMED_OUT,
+        /** terminate() returned false, e.g. the renderer had already ended. */
+        REFUSED,
+        /** WebView is not running in multiprocess mode, so there is no renderer handle. */
+        NO_HANDLE,
+        /** No live page to reach the renderer through. */
+        NO_PAGE,
+        /** A login page is open on the same renderer. */
+        LOGIN_OPEN,
+    }
+
     private class DataBridge(private val serviceKey: String) {
         @JavascriptInterface
         fun postData(source: String, jsonString: String) {
@@ -242,6 +292,20 @@ class WebViewDataCollector(private val context: Context) {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/136.0.0.0 Safari/537.36"
+
+        /**
+         * Login pages currently on screen. They run in the same renderer process as the
+         * background pages, so [recycleRenderer] must leave it alone while any is open.
+         */
+        private val openLoginPages = AtomicInteger(0)
+
+        fun onLoginPageOpened() {
+            openLoginPages.incrementAndGet()
+        }
+
+        fun onLoginPageClosed() {
+            openLoginPages.updateAndGet { (it - 1).coerceAtLeast(0) }
+        }
 
         /**
          * Suppress the X-Requested-With header that Android WebView adds automatically.

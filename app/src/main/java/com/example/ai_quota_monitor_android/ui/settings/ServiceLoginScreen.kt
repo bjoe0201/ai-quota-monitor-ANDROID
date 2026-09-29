@@ -188,6 +188,8 @@ fun ServiceLoginScreen(
                 key(webViewGeneration) {
                     AndroidView(
                         factory = { ctx ->
+                            // Matched in onRelease; keeps renderer recycling off this page.
+                            WebViewDataCollector.onLoginPageOpened()
                             WebView(ctx).apply {
                                 layoutParams = ViewGroup.LayoutParams(
                                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -277,6 +279,7 @@ fun ServiceLoginScreen(
                             webView.loadUrl("about:blank")
                             webView.clearHistory()
                             webView.destroy()
+                            WebViewDataCollector.onLoginPageClosed()
                         },
                     )
                 }

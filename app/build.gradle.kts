@@ -56,9 +56,15 @@ android {
             val mode = (project.findProperty("cacheClearExperiment") as String?) ?: "none"
             require(mode in setOf("none", "ram", "disk")) { "cacheClearExperiment must be none, ram or disk" }
             buildConfigField("String", "CACHE_CLEAR_EXPERIMENT", "\"$mode\"")
+            // Renderer recycling PoC (PLANS/03 T6): terminate the WebView renderer once per
+            // collection cycle. Off unless built with -ProutineRendererRecycle=true.
+            val recycle = (project.findProperty("routineRendererRecycle") as String?) ?: "false"
+            require(recycle in setOf("true", "false")) { "routineRendererRecycle must be true or false" }
+            buildConfigField("boolean", "ROUTINE_RENDERER_RECYCLE", recycle)
         }
         release {
             buildConfigField("String", "CACHE_CLEAR_EXPERIMENT", "\"none\"")
+            buildConfigField("boolean", "ROUTINE_RENDERER_RECYCLE", "false")
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(

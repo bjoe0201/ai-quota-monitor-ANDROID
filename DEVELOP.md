@@ -1,6 +1,6 @@
 # DEVELOP.md — 開發與診斷交接
 
-最後更新：2026-09-29。本檔記錄「正在進行中的診斷」與「怎麼重現測試」，供下一次接手。
+最後更新：2026-09-30。本檔記錄「正在進行中的診斷」與「怎麼重現測試」，供下一次接手。
 已完成的根因分析與證據不在此重複，見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
 
 ## 目前狀態
@@ -66,6 +66,17 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 → 單一服務的修正（改 ChatGPT、改注入）無法消除累積。下一步是 **T6（每輪結束計畫性回收 renderer）**，它對所有服務都有效；T7（同源輕量頁）則用於降低個別服務的單輪成本。
 
+**T6 PoC 已完成（2026-09-30）：有效。** 每輪最後一頁回報後以 `WebViewRenderProcess.terminate()` 結束 renderer，下一輪自動起新的。45 分鐘、10 輪：
+
+| 指標 | T0（不回收） | T6（每輪回收） |
+| --- | --- | --- |
+| 各代峰值（RSS） | 701→1,475 MB 逐輪升高 | 710～816 MB，10 代持平 |
+| 空檔 | 每輪 +190 MB 不歸還 | 沒有 renderer 程序 |
+| 非計畫死亡 | 約每 29 分鐘一次 | 0 |
+| 代價 | — | 回收約 0.3 秒；每輪首步冷啟動約 +1.5 秒 |
+
+開關是 `-ProutineRendererRecycle=true`（僅 debug，預設關）。驅動腳本 `release/measurements/t6run.sh`，細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.6。**尚未驗證**：多小時／過夜、背景與螢幕關閉、登入畫面開啟時跳過回收。
+
 **T5 期間順帶查到並修正：**
 
 - **OpenAI 每輪 90 秒逾時的根因**：`19fbeda` 的 host 白名單只接受 `platform.openai.com`，但帳務資料在 `api.openai.com`（`/v1/dashboard/billing/credit_grants`、`/subscription`）。已讓 `hostMatch` 支援多個 host，`injection-test.mjs` 新增兩項測試（修正前失敗、修正後 7／7 通過）。2026-09-29 00:10 安裝後實測 OpenAI `data=true`、27 秒完成，欄位齊全。
@@ -77,7 +88,7 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 ## 待辦（建議順序）
 
-1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ ~~T5 逐服務隔離~~（2026-09-29 完成：每個服務都累積，§8.5）→ **T6 計畫性回收 renderer PoC**（步驟見 PLANS/03 §5 T6）
+1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ ~~T5 逐服務隔離~~（2026-09-29 完成：每個服務都累積，§8.5）→ ~~T6 計畫性回收 renderer PoC~~（2026-09-30 完成：有效，§8.6）→ **把回收改為預設開啟（含 release），再做過夜長跑驗證**
    - ~~OpenAI billing 步驟每輪都耗滿 90 秒逾時~~（已修正，`01927db`；補跑 12／12 輪有資料）
 2. **登入與背景收集互斥** — 目前進入登入畫面不會暫停收集迴圈，可能同時有 1 個背景頁 + 1 個登入頁。`MainActivity` 只切換 screen state，`DashboardViewModel` 的收集 job 不受影響
 3. **endpoint 層級白名單** — 目前只做到 host 層級。要再收緊必須逐服務確認實際 API 路徑，否則可能悄悄停掉正常資料
@@ -91,8 +102,8 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 ### 單元測試
 
 ```powershell
-.\gradlew.bat testDebugUnitTest          # 21 個 JVM 測試
-node app/src/test/js/injection-test.mjs  # 5 個注入腳本測試（不需裝置）
+.\gradlew.bat testDebugUnitTest          # 29 個 JVM 測試
+node app/src/test/js/injection-test.mjs  # 7 個注入腳本測試（不需裝置）
 ```
 
 JS 測試可指定檔案來比對修復前後：`node app/src/test/js/injection-test.mjs /path/to/old.js`
