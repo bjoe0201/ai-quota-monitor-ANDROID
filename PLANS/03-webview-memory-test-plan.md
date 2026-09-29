@@ -186,7 +186,8 @@ renderer 必須透過 App 的程序連線關係確認歸屬，不可直接把所
 - [x] 完成 T1 RAM 快取、T2 含磁碟快取對照。（兩者皆無差異，見 §8.2、§8.4）
 - [ ] 完成 T3 腳本邊界及資料正確性驗證。
 - [ ] 完成 T4 登入互斥驗證。
-- [ ] 視需要完成 T5／T8 隔離與 profile。
+- [x] 完成 T5 逐服務隔離。（2026-09-29：每個服務都直線累積、加總 ≈ 全部一起跑，見 §8.5）
+- [ ] 視需要完成 T8 profile（JS heap／DOM／worker 與 native 的歸屬）。
 - [ ] 視需要完成 T6 回收 PoC。
 - [ ] 視需要完成 T7 單服務輕量收集。
 - [ ] 完成長跑、回歸與最終方案判定。
@@ -196,6 +197,7 @@ renderer 必須透過 App 的程序連線關係確認歸屬，不可直接把所
 | T0 | 2026-09-28 02:09–02:54／`19fbeda` | 安裝腳本雜湊一致；lastUpdateTime 2026-09-27 03:03:59 | 45 分鐘、兩代 renderer、約 8 輪完整週期 | 空檔底線（RSS）第一代 525→693→865→1,100→1,284 MB，平均 **+190 MB／輪**；第二代 393→664→859 MB | 0 計畫／1 非計畫（第一代約 29 分鐘、RSS 約 1.45 GB 時終止；App PID 不變） | 收集迴圈持續運作；量測中未檢視卡片內容 | **JS 修正未降低斜率** → 進 T1／T2 |
 | T1 | 2026-09-28 03:37–04:22／`a80885e` + `-PcacheClearExperiment=ram` | 建置後確認 `CACHE_CLEAR_EXPERIMENT="ram"`；lastUpdateTime 03:37:33；logcat 每輪一筆 `clearCache(includeDiskFiles=false) ... done`（8／8 輪） | 45 分鐘、兩代 renderer、約 8 輪 | 空檔底線（RSS）第一代 548→728→923→1,108→1,272 MB，平均 **+181 MB／輪**；第二代 389→667→840 MB | 0 計畫／1 非計畫（第一代約 29 分鐘、RSS 約 1.35 GB／PSS 約 1.5 GB 時終止；App PID 不變） | 收集迴圈持續運作；量測中未檢視卡片內容 | **與 T0 無差異**：RAM 資源快取不是累積來源 → T2 |
 | T2 | 2026-09-28 21:23–22:09／`e2048de` + `-PcacheClearExperiment=disk` | 建置後確認 `CACHE_CLEAR_EXPERIMENT="disk"`；已安裝 base.apk SHA-256 與建置產物一致；lastUpdateTime 21:22:43；logcat 每輪一筆 `clearCache(includeDiskFiles=true) ... done`（8／8 輪） | 46 分鐘、兩代 renderer、約 8 輪 | 空檔底線（RSS）第一代 574→772→971→1,158→1,325 MB，平均 **+188 MB／輪**；第二代 384→609→812 MB | 0 計畫／1 非計畫（第一代 29 分 04 秒、RSS 約 1.44 GB／PSS 約 1.5 GB 時終止；App PID 不變） | 收集迴圈持續運作；量測中未檢視卡片內容 | **與 T0／T1 無差異**：WebView 資源快取（RAM 與磁碟）都不是累積來源 → T5／T6 |
+| T5 | 2026-09-28 22:33–2026-09-29 00:03（Claude.ai、ChatGPT）、2026-09-29 21:38–23:09（Claude API、OpenRouter、OpenAI）／含隔離開關與 OpenAI host 修正的 debug build（兩者後於 `01927db`、`7f210c4` commit） | 已安裝 base.apk 內 `ai-monitor-android.js` SHA-256 與 HEAD 一致（Kotlin 部分未逐位比對）；lastUpdateTime 2026-09-29 00:10:41；logcat 每段 `isolated to <key>` | 每服務 30 分鐘、12 輪，各一代 renderer | 空檔底線平均：ChatGPT **+83**、Claude.ai **+44**、OpenRouter **+37.5**、Claude API **+24**、OpenAI **+17** MB／輪；加總 +205 | 0／0（最高 RSS 1,237 MB，ChatGPT） | 補跑三段 37／37 步 `data=true`；09-28 的 OpenAI 段全無資料，作廢 | **每個服務都累積、皆不收斂**，加總 ≈ 一起跑 → 非單一服務問題 → T6 |
 
 ### 8.1 T0 細節（2026-09-28）
 
@@ -252,6 +254,27 @@ T1 量測結束後 App 未停止，整夜放著跑；隔天以 logcat（events b
 - 磁碟快取指標**取不到**：`run-as` 被擋，`dumpsys diskstats` 為系統定期快照，量測前後都是 133.6 MB，未反映本次清除，不能作為證據。
 - 結論：`clearCache(true)` 與 `clearCache(false)`、不清除三者斜率一致。WebView HTTP 資源快取（RAM 與磁碟）不是每輪 +190 MB 的來源。依 §5 第 6 點進 T3／T5；需要短期控制時另做 T6。仍未排除的快取層：Service Worker Cache Storage、IndexedDB、JS 物件（`clearCache` 不涵蓋）。
 - 建置環境備註：預設 `JAVA_HOME` 指向的 Android Studio 內附 JBR 不完整（缺 `lib\jvm.cfg`），本次以 `JAVA_HOME` 暫指另一份完整的 JBR（OpenJDK 25.0.3）建置。只影響建置工具，不影響 APK 的 WebView 行為。
+
+### 8.5 T5 細節（2026-09-28～29）
+
+- 方法：debug build 以 `am start ... --es mem_isolate_service <key>` 只收集單一服務；每段先 `am force-stop` 再冷啟動，每 15 秒取樣 120 筆（30 分鐘）。收集週期在隔離時約 2 分 30 秒（步驟 + 120 秒間隔），比五服務一起跑（約 5 分 33 秒）短，所以比較單位是「每輪」而不是「每分鐘」。
+- 逐輪空檔底線（RSS，MB）：
+
+  | 服務 | 逐輪 | 平均／輪 | 後半段 | PSS 首→末 |
+  | --- | --- | --- | --- | --- |
+  | ChatGPT | 323、416、505、598、682、757、830、919、1,001、1,090、1,169、1,237 | +83.1 | +81.4 | 227→1,179 |
+  | Claude.ai | 324、350、401、451、516、549、597、641、686、733、784、806 | +43.8 | +41.8 | 225→723 |
+  | OpenRouter | 329、372、417、464、500、536、580、611、653、691、725、742 | +37.5 | +32.4 | 207→660 |
+  | Claude API | 274、303、335、364、392、420、446、469、469、483、510、534 | +23.6 | +17.6 | 155→442 |
+  | OpenAI | 224、243、261、277、295、312、330、346、363、380、396、408 | +16.7 | +15.6 | 113→296 |
+
+- 資料：Claude API 12／12（32–37 秒）、OpenRouter 13／13（27–30 秒，每步含 credits、activity 兩頁）、OpenAI 12／12（28–32 秒）步驟 `data=true`。09-28 的 OpenAI 段因 host 白名單缺 `api.openai.com` 每步逾時 90 秒、無資料（+6.5 MB／輪），修正（`01927db`）後重跑，該段數據作廢。
+- renderer：每段一代，無非計畫換代；補跑三段最高 RSS 分別 625、896、445 MB，MemAvailable 最低 721 MB。App PID 各段內不變。
+- 判讀：
+  1. 五項加總 +205 MB／輪，與 T0／T1／T2 的 +181～+190 同量級。累積是各頁面增量相加，沒有看到服務間交互作用；加總略高可能是各段起點不同或隔離時週期較短，不再細究。
+  2. 沒有任何服務的斜率為 0 或趨緩，後半段與全程接近。依 §4 T5 的判定，成長並非「跟隨某服務」，而是**每個頁面載入都在 renderer 留下與頁面工作量相關的量**（同一 OpenAI 頁面，無資料 +6.5、有資料 +17）。
+  3. 這支持「renderer 程序跨頁面保留」而非「特定網站洩漏」（頁面每輪都被銷毀，網站 JS 洩漏無法跨輪存活）。但仍未分辨是 JS heap 類（V8 isolate 層級）還是 native 配置器保留，需要 T8 profile 才能歸因。
+- 下一步：T6（計畫性 renderer 回收）對所有服務一體有效，列為優先；T7 可降低 ChatGPT、Claude.ai 等重頁面的單輪成本，作為 T6 的補充，不是替代。
 
 其餘測試執行時追加列。失敗、未執行、指標不可取得與不適用必須分開記錄；不填推測數據。
 

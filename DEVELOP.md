@@ -1,6 +1,6 @@
 # DEVELOP.md — 開發與診斷交接
 
-最後更新：2026-09-28。本檔記錄「正在進行中的診斷」與「怎麼重現測試」，供下一次接手。
+最後更新：2026-09-29。本檔記錄「正在進行中的診斷」與「怎麼重現測試」，供下一次接手。
 已完成的根因分析與證據不在此重複，見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
 
 ## 目前狀態
@@ -46,33 +46,39 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 下一步依計畫進 **T5（逐服務隔離）**，找出哪個服務頁面貢獻了累積；需要短期控制時另做 **T6（計畫性回收 renderer）**。不要直接跳到「A′ 是唯一解」。
 
-**T5 進行中（2026-09-28 22:33 起，尚未完成）。** 啟動時帶 `--es mem_isolate_service <key>` 只收集單一服務（僅 debug build）；驅動腳本與原始數據在被忽略的 `release/measurements/`（`t5.sh`、`t5an.py`、`2026-09-28-T5-*.csv`）。每段：強制停止 → 冷啟動 → 每 15 秒取樣 30 分鐘。
+**T5 已完成（2026-09-28 22:33 起，2026-09-29 23:09 補完）。** 啟動時帶 `--es mem_isolate_service <key>` 只收集單一服務（僅 debug build）；驅動腳本與原始數據在被忽略的 `release/measurements/`（`t5run.sh` → `t5.sh`、`t5an.py`、`2026-09-2{8,9}-T5-*.csv`、`*-T5-events.log`）。每段：強制停止 → 冷啟動 → 每 15 秒取樣 30 分鐘（120 筆）。細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.5。
 
-| 服務 | 空檔底線（RSS） | 平均／輪 | 備註 |
-| --- | --- | --- | --- |
-| Claude.ai | 324→806 MB（12 輪） | **+44 MB** | 每輪有資料 |
-| ChatGPT | 323→1,237 MB（12 輪） | **+83 MB** | 每輪有資料；最大宗 |
-| OpenAI | 211→263 MB（9 輪） | **+6.5 MB** | 每輪都沒資料（下述 bug），頁面停滿 90 秒 |
-| Claude API | 255→316 MB（僅 3 輪） | 約 +30 MB | 被中斷，需重跑 |
-| OpenRouter | — | — | 未跑 |
+| 服務 | 日期 | 空檔底線（RSS，12 輪） | 平均／輪 | 後半段／輪 | 資料 |
+| --- | --- | --- | --- | --- | --- |
+| ChatGPT | 09-28 | 323→1,237 MB | **+83 MB** | +81 | 每輪有 |
+| Claude.ai | 09-28 | 324→806 MB | **+44 MB** | +42 | 每輪有 |
+| OpenRouter（credits + activity 兩頁） | 09-29 | 329→742 MB | **+37.5 MB** | +32 | 13／13 有 |
+| Claude API | 09-29 | 274→534 MB | **+24 MB** | +18 | 12／12 有 |
+| OpenAI（修正後） | 09-29 | 224→408 MB | **+17 MB** | +16 | 12／12 有 |
+| ~~OpenAI（修正前）~~ | 09-28 | 211→263 MB（9 輪） | ~~+6.5 MB~~ | — | 全無，作廢 |
 
-已知部分加總約 164 MB，接近全部一起跑的 +190 MB／輪：累積大致是各頁面的加總，且**強烈依服務而異**（ChatGPT 最重、OpenAI 幾乎沒有），不是每次載入都留下固定量。
+**結論：**
 
-**明天待做**：補跑 Claude API、OpenRouter 各 30 分鐘；OpenAI 在修正後（會真的 clone／解析帳務回應）也應重跑一次，才能和其他服務比較。
+- 五項加總 **+205 MB／輪**，與全部一起跑的 +181～+190 MB／輪同一量級 → 累積就是各頁面各自留下的量相加，不是服務之間互相作用。
+- **每個服務都在累積，而且都是直線、不收斂**（後半段斜率與全程相近），沒有任何一個是 0。移除最重的 ChatGPT 只能降約 40%，無法根治。
+- 同一個 OpenAI 頁面：沒拿到資料時 +6.5，真的解析帳務資料後 +17 → 留下的量跟頁面實際做了多少事有關，不是每次載入固定一個量。
+- 三段補跑 renderer 都沒換代（最高 RSS 896 MB），App PID 不變。
+
+→ 單一服務的修正（改 ChatGPT、改注入）無法消除累積。下一步是 **T6（每輪結束計畫性回收 renderer）**，它對所有服務都有效；T7（同源輕量頁）則用於降低個別服務的單輪成本。
 
 **T5 期間順帶查到並修正：**
 
 - **OpenAI 每輪 90 秒逾時的根因**：`19fbeda` 的 host 白名單只接受 `platform.openai.com`，但帳務資料在 `api.openai.com`（`/v1/dashboard/billing/credit_grants`、`/subscription`）。已讓 `hostMatch` 支援多個 host，`injection-test.mjs` 新增兩項測試（修正前失敗、修正後 7／7 通過）。2026-09-29 00:10 安裝後實測 OpenAI `data=true`、27 秒完成，欄位齊全。
 - **Claude API 卡片「沒資料」**：資料其實完整（`balance_usd`、`plan`、`this_month_usd`、`next_billing`），API 全在 `platform.claude.com`。卡片是被**收合**（▸），收合狀態存在 `collapsedCards`。待辦第 6 項應可結案，待使用者確認展開後正常。
 - T5 期間其他卡片顯示「等待瀏覽器資料」是因為 DataStore 只在記憶體中、每段強制停止都會清空，不是故障。
-- `TaskStop` 停不掉 `t5.sh`／`sample.sh`，結束時一定要用 Win32_Process 確認並終止，否則腳本會繼續強制停止 App。
+- `TaskStop` 停不掉 `t5.sh`／`sample.sh`，結束時一定要用 Win32_Process 確認並終止，否則腳本會繼續強制停止 App。2026-09-29 的 `t5run.sh` 正常結束後，仍殘留一個 bash（pipeline 子程序）與 `adb logcat`（Git Bash 沒有 `pkill`），同樣要用 Win32_Process 收尾。
 
 **建置環境陷阱（2026-09-28）：** 若 `JAVA_HOME` 指向的 Android Studio 內附 JBR 不完整（缺 `lib\jvm.cfg`，例如 Studio 更新中斷），`gradlew.bat` 會直接失敗。暫時在該次指令內把 `$env:JAVA_HOME` 指向另一份完整的 JDK 17+，或修復／重裝 Android Studio。
 
 ## 待辦（建議順序）
 
-1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ **T5 逐服務隔離**
-   - **OpenAI billing 步驟每輪都耗滿 90 秒逾時**，確認是否根本沒拿到資料
+1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ ~~T5 逐服務隔離~~（2026-09-29 完成：每個服務都累積，§8.5）→ **T6 計畫性回收 renderer PoC**（步驟見 PLANS/03 §5 T6）
+   - ~~OpenAI billing 步驟每輪都耗滿 90 秒逾時~~（已修正，`01927db`；補跑 12／12 輪有資料）
 2. **登入與背景收集互斥** — 目前進入登入畫面不會暫停收集迴圈，可能同時有 1 個背景頁 + 1 個登入頁。`MainActivity` 只切換 screen state，`DashboardViewModel` 的收集 job 不受影響
 3. **endpoint 層級白名單** — 目前只做到 host 層級。要再收緊必須逐服務確認實際 API 路徑，否則可能悄悄停掉正常資料
 4. **`WebViewCompat.addDocumentStartJavaScript`** — 比 `onPageStarted` 更有保證（官方承諾在頁面自身腳本前執行），但會改變注入語義，需保留「原站替換 fetch 後補注入」的能力，單獨處理並單獨量測
