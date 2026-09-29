@@ -75,7 +75,7 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 | 非計畫死亡 | 約每 29 分鐘一次 | 0 |
 | 代價 | — | 回收約 0.3 秒；每輪首步冷啟動約 +1.5 秒 |
 
-開關是 `-ProutineRendererRecycle=true`（僅 debug，預設關）。驅動腳本 `release/measurements/t6run.sh`，細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.6。**尚未驗證**：多小時／過夜、背景與螢幕關閉、登入畫面開啟時跳過回收。
+2026-09-30 起**預設開啟**（debug 與 release）；只有以 `-ProutineRendererRecycle=false` 建置的 debug APK 會關閉，用於量未回收的對照組。預設開啟版 01:24–01:39 短跑確認：3 次回收皆 `DONE`（324–366 ms）、各代峰值 728–792 MB、17／17 步 `data=true`、0 非計畫死亡。驅動腳本 `release/measurements/t6run.sh`，細節見 [`PLANS/03`](PLANS/03-webview-memory-test-plan.md) §8.6。**尚未驗證**：多小時／過夜、背景與螢幕關閉、登入畫面開啟時跳過回收。
 
 **T5 期間順帶查到並修正：**
 
@@ -88,7 +88,7 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 ## 待辦（建議順序）
 
-1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ ~~T5 逐服務隔離~~（2026-09-29 完成：每個服務都累積，§8.5）→ ~~T6 計畫性回收 renderer PoC~~（2026-09-30 完成：有效，§8.6）→ **把回收改為預設開啟（含 release），再做過夜長跑驗證**
+1. ~~量測 JS 修復後的斜率~~（2026-09-28 完成：無改善）→ ~~T1 `clearCache(false)`~~（無差異，PLANS/03 §8.2）→ ~~T2 `clearCache(true)`~~（無差異，§8.4）→ ~~T5 逐服務隔離~~（2026-09-29 完成：每個服務都累積，§8.5）→ ~~T6 計畫性回收 renderer PoC~~（2026-09-30 完成：有效，§8.6）→ ~~把回收改為預設開啟（含 release）~~（2026-09-30）→ **過夜長跑驗證**（不接 PC，隔天讀 events／crash buffer）
    - ~~OpenAI billing 步驟每輪都耗滿 90 秒逾時~~（已修正，`01927db`；補跑 12／12 輪有資料）
 2. **登入與背景收集互斥** — 目前進入登入畫面不會暫停收集迴圈，可能同時有 1 個背景頁 + 1 個登入頁。`MainActivity` 只切換 screen state，`DashboardViewModel` 的收集 job 不受影響
 3. **endpoint 層級白名單** — 目前只做到 host 層級。要再收緊必須逐服務確認實際 API 路徑，否則可能悄悄停掉正常資料

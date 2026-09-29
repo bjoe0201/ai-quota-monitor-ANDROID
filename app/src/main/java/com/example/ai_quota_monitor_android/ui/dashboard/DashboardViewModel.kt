@@ -158,7 +158,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             }
             if (index == steps.lastIndex) {
                 clearCacheForExperiment(activeCollector, step.serviceKey)
-                if (!rendererDiedInStep) recycleRendererForExperiment(activeCollector, step.serviceKey)
+                if (!rendererDiedInStep) recycleRenderer(activeCollector, step.serviceKey)
             }
             activeCollector.destroyService(step.serviceKey)
             if (rendererDiedInStep) {
@@ -186,12 +186,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Renderer recycling PoC (PLANS/03 T6), off unless the debug APK was built with
-     * `-ProutineRendererRecycle=true`. Runs once per cycle through the last page, while it is
-     * still alive: terminate() needs a WebView to reach the renderer, and the next cycle's
-     * first page then starts a fresh renderer.
+     * End the renderer once per cycle, through the last page while it is still alive:
+     * terminate() needs a WebView to reach the renderer, and the next cycle's first page then
+     * starts a fresh one. Every page load leaves memory behind in the renderer that destroy()
+     * never returns; without this it grew ~190 MB a cycle until the system killed it
+     * (PLANS/03 T5, T6). A debug APK built with `-ProutineRendererRecycle=false` skips it.
      */
-    private suspend fun recycleRendererForExperiment(
+    private suspend fun recycleRenderer(
         activeCollector: WebViewDataCollector,
         serviceKey: String,
     ) {

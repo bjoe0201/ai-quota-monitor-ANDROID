@@ -206,7 +206,7 @@ app/src/main/java/com/example/ai_quota_monitor_android/
 
 Two data paths feed into the same `DataStoreRepository`:
 
-1. **WebView path (primary):** App loads AI service pages in a background WebView, injects JS to intercept API responses via `@JavascriptInterface`, data flows directly into repository. Pages are collected **one at a time** — `DashboardViewModel.startCollectionLoop()` walks `collectionSteps(config)` and destroys each page as soon as it has reported, because every WebView shares one renderer process and six live SPAs exhausted it (see `docs/01-webview-renderer-oom-crash.md`).
+1. **WebView path (primary):** App loads AI service pages in a background WebView, injects JS to intercept API responses via `@JavascriptInterface`, data flows directly into repository. Pages are collected **one at a time** — `DashboardViewModel.startCollectionLoop()` walks `collectionSteps(config)` and destroys each page as soon as it has reported, because every WebView shares one renderer process and six live SPAs exhausted it (see `docs/01-webview-renderer-oom-crash.md`). After the last page of each cycle the renderer itself is terminated (`WebViewDataCollector.recycleRenderer()`), since destroyed pages still leave memory behind in it; `PlannedRecycleTracker` keeps that planned death from being handled as a crash (PLANS/03 T6).
 2. **HTTP Server path (secondary):** NanoHTTPD on port 7890 receives POST `/update` from PC browser running Tampermonkey script (same protocol as original Python app).
 
 ### Authentication
