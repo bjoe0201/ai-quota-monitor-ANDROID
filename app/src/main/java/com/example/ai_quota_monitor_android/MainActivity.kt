@@ -44,16 +44,17 @@ class MainActivity : ComponentActivity() {
                     Screen.Dashboard -> DashboardScreen(
                         viewModel = viewModel,
                         onSettingsClick = { screen = Screen.Settings },
+                        onLoginService = { key -> screen = Screen.Login(key, returnTo = Screen.Dashboard) },
                     )
                     Screen.Settings -> SettingsScreen(
                         viewModel = viewModel,
                         onBack = { screen = Screen.Dashboard },
-                        onLoginService = { key -> screen = Screen.Login(key) },
+                        onLoginService = { key -> screen = Screen.Login(key, returnTo = Screen.Settings) },
                     )
                     is Screen.Login -> ServiceLoginScreen(
                         serviceKey = s.serviceKey,
                         viewModel = viewModel,
-                        onBack = { screen = Screen.Settings },
+                        onBack = { screen = s.returnTo },
                     )
                 }
             }
@@ -94,5 +95,6 @@ class MainActivity : ComponentActivity() {
 private sealed class Screen {
     data object Dashboard : Screen()
     data object Settings : Screen()
-    data class Login(val serviceKey: String) : Screen()
+    /** Opened from Settings or from a card on the dashboard; back returns to [returnTo]. */
+    data class Login(val serviceKey: String, val returnTo: Screen) : Screen()
 }

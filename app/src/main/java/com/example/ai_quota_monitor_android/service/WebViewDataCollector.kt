@@ -29,6 +29,7 @@ class WebViewDataCollector(private val context: Context) {
     private val webViews = mutableMapOf<String, WebView>()
     private var onSessionExpired: ((String) -> Unit)? = null
     private var onRendererGone: ((String) -> Unit)? = null
+    private var onChallengePage: ((String) -> Unit)? = null
     private var jsScript: String? = null
 
     private val expiryGuard = SessionExpiryGuard()
@@ -45,6 +46,11 @@ class WebViewDataCollector(private val context: Context) {
      */
     fun setOnRendererGone(listener: (String) -> Unit) {
         onRendererGone = listener
+    }
+
+    /** Called when [serviceKey]'s page landed on Cloudflare's challenge; see [CloudflareChallenge]. */
+    fun setOnChallengePage(listener: (String) -> Unit) {
+        onChallengePage = listener
     }
 
     private fun getJsScript(): String {
@@ -146,6 +152,9 @@ class WebViewDataCollector(private val context: Context) {
                         return
                     }
                     expiryGuard.onContentPageSeen(serviceKey)
+                    view.evaluateJavascript(CloudflareChallenge.DETECT_JS) { result ->
+                        if (CloudflareChallenge.isChallenge(result)) onChallengePage?.invoke(serviceKey)
+                    }
                     // Re-inject on finish as safety net (some SPAs replace fetch after first inject)
                     val script = getJsScript()
                     if (script.isNotEmpty()) {

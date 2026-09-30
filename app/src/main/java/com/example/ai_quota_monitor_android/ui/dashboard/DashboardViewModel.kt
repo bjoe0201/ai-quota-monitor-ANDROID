@@ -11,6 +11,7 @@ import com.example.ai_quota_monitor_android.data.model.ServiceResult
 import com.example.ai_quota_monitor_android.data.repository.ConfigRepository
 import com.example.ai_quota_monitor_android.data.repository.DataStoreRepository
 import com.example.ai_quota_monitor_android.service.ALL_BROWSER_SERVICES
+import com.example.ai_quota_monitor_android.service.CloudflareChallenge
 import com.example.ai_quota_monitor_android.service.CollectionStep
 import com.example.ai_quota_monitor_android.service.RendererRecoveryPolicy
 import com.example.ai_quota_monitor_android.service.WebViewDataCollector
@@ -32,6 +33,8 @@ data class DashboardUiState(
     val results: Map<String, ServiceResult> = emptyMap(),
     val serverRunning: Boolean = false,
     val connectedServices: Int = 0,
+    /** Services whose last page was stopped by Cloudflare's challenge; see [CloudflareChallenge]. */
+    val challengedServices: Set<String> = emptySet(),
 )
 
 class DashboardViewModel(app: Application) : AndroidViewModel(app) {
@@ -45,6 +48,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     private var stepJob: Job? = null
     private val recoveryPolicy = RendererRecoveryPolicy { SystemClock.elapsedRealtime() }
     private var rendererDiedInStep = false
+    private var stepServiceKey: String? = null
+    private var stepGotData = false
+    private var challengeSeenInStep = false
+    private var challengeGiveUp: Job? = null
 
     init {
         viewModelScope.launch {
@@ -97,6 +104,18 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             rendererDiedInStep = true
             stepJob?.cancel()
         }
+        created.setOnChallengePage { serviceKey ->
+            if (serviceKey != stepServiceKey) return@setOnChallengePage
+            challengeSeenInStep = true
+            // A background page never passes the challenge by itself; give it a moment in case
+            // it clears, then move on instead of waiting out the full page timeout.
+            if (!stepGotData && challengeGiveUp == null) {
+                challengeGiveUp = viewModelScope.launch {
+                    delay(CloudflareChallenge.GRACE_MS)
+                    stepJob?.cancel()
+                }
+            }
+        }
         collector = created
         return created
     }
@@ -118,6 +137,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     private fun startCollectionLoop() {
         cycleJob?.cancel()
         stepJob = null
+        // Left running, it would cancel whichever step the new cycle is on.
+        challengeGiveUp?.cancel()
+        challengeGiveUp = null
         // A cancelled cycle may have left a page loaded; never keep more than one alive.
         collector?.destroyAll()
         cycleJob = viewModelScope.launch {
@@ -143,6 +165,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         }
         for ((index, step) in steps.withIndex()) {
             rendererDiedInStep = false
+            stepServiceKey = step.serviceKey
+            stepGotData = false
+            challengeSeenInStep = false
             val startedAt = SystemClock.elapsedRealtime()
             var gotData = false
             // A child of the cycle: cancelling the cycle cancels the page it is waiting on,
@@ -151,10 +176,18 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             stepJob = job
             job.join()
             stepJob = null
+            challengeGiveUp?.cancel()
+            challengeGiveUp = null
+            _ui.value = _ui.value.copy(
+                challengedServices = CloudflareChallenge.afterStep(
+                    _ui.value.challengedServices, step.serviceKey, challengeSeenInStep, gotData,
+                ),
+            )
             if (BuildConfig.DEBUG) {
                 Log.i(EXPERIMENT_TAG, "step ${step.serviceKey} data=$gotData " +
                     "${SystemClock.elapsedRealtime() - startedAt}ms" +
-                    if (rendererDiedInStep) " renderer-gone" else "")
+                    (if (rendererDiedInStep) " renderer-gone" else "") +
+                    if (challengeSeenInStep) " cloudflare-challenge" else "")
             }
             if (index == steps.lastIndex) {
                 clearCacheForExperiment(activeCollector, step.serviceKey)
@@ -233,6 +266,12 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 if (budget <= 0) break
                 val wait = if (gotData) minOf(SETTLE_MS, budget) else budget
                 withTimeoutOrNull(wait) { updates.receive() } ?: break
+                if (!gotData) {
+                    // The page got through, so it must not be given up on as a challenge.
+                    stepGotData = true
+                    challengeGiveUp?.cancel()
+                    challengeGiveUp = null
+                }
                 gotData = true
             }
             gotData
@@ -316,6 +355,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         cycleJob?.cancel()
+        challengeGiveUp?.cancel()
         stepJob = null
         collector?.destroyAll()
         super.onCleared()

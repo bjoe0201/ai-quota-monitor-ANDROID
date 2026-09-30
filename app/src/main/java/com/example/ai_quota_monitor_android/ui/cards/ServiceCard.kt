@@ -2,7 +2,9 @@ package com.example.ai_quota_monitor_android.ui.cards
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,6 +84,8 @@ fun ServiceCard(
     result: ServiceResult?,
     collapsed: Boolean = false,
     onToggleCollapse: () -> Unit = {},
+    needsVerification: Boolean = false,
+    onVerify: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
@@ -100,12 +104,15 @@ fun ServiceCard(
             accent = accent,
             headerBg = headerBg,
             collapsed = collapsed,
-            statusColor = statusDotColor(result, colors),
+            statusColor = if (needsVerification) colors.Warning else statusDotColor(result, colors),
             timestamp = result?.data?.get("updated_at")?.toString() ?: "",
             onToggle = onToggleCollapse,
         )
         AnimatedVisibility(visible = !collapsed) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                if (needsVerification) {
+                    VerificationBanner(onVerify)
+                }
                 if (result == null) {
                     PlaceholderText("載入中...", colors.TextDim)
                 } else if (!result.success) {
@@ -248,6 +255,29 @@ private fun RenderRows(rows: List<CardRow>) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Background pages cannot pass Cloudflare's challenge, so the user has to do it once in the
+ * login screen; this is the way there.
+ */
+@Composable
+private fun VerificationBanner(onVerify: () -> Unit) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .border(1.dp, colors.Warning, RoundedCornerShape(4.dp))
+            .clickable(onClick = onVerify)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = "需要通過 Cloudflare 驗證", color = colors.Warning, fontSize = 9.sp)
+        Text(text = "點此開啟 ›", color = colors.Warning, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 

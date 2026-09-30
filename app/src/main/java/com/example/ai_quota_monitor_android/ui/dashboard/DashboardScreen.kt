@@ -27,8 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,17 +52,23 @@ import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onSettingsClick: () -> Unit,
+    onLoginService: (serviceKey: String) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    when (state.config.dashboardLayout) {
-        DashboardLayout.A -> LayoutA(state, isLandscape, viewModel, onSettingsClick)
-        DashboardLayout.B -> LayoutB(state, isLandscape, viewModel, onSettingsClick)
-        DashboardLayout.C -> LayoutC(state, isLandscape, viewModel, onSettingsClick)
-        DashboardLayout.D -> LayoutD(state, isLandscape, viewModel, onSettingsClick)
+    CompositionLocalProvider(LocalOpenServiceLogin provides onLoginService) {
+        when (state.config.dashboardLayout) {
+            DashboardLayout.A -> LayoutA(state, isLandscape, viewModel, onSettingsClick)
+            DashboardLayout.B -> LayoutB(state, isLandscape, viewModel, onSettingsClick)
+            DashboardLayout.C -> LayoutC(state, isLandscape, viewModel, onSettingsClick)
+            DashboardLayout.D -> LayoutD(state, isLandscape, viewModel, onSettingsClick)
+        }
     }
 }
+
+/** Opens a service's login screen; provided once here rather than threaded through every layout. */
+private val LocalOpenServiceLogin = staticCompositionLocalOf<(String) -> Unit> { {} }
 
 // ── Shared 2-column service grid ─────────────────────────────────────────────
 // Renders enabled services in user-defined order, 2 per row.
@@ -465,12 +473,15 @@ private fun SvcCard(
 ) {
     val svc = state.config.services[key] ?: return
     if (!svc.enabled) return
+    val openLogin = LocalOpenServiceLogin.current
     ServiceCard(
         serviceKey = key,
         displayName = svc.displayName,
         result = state.results[key],
         collapsed = key in state.config.collapsedCards,
         onToggleCollapse = { viewModel.toggleCardCollapse(key) },
+        needsVerification = key in state.challengedServices,
+        onVerify = { openLogin(key) },
         modifier = modifier,
     )
 }
