@@ -72,7 +72,7 @@ class WebViewDataCollector(private val context: Context) {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
-            settings.userAgentString = DESKTOP_UA
+            settings.userAgentString = BrowserUserAgent.forDevice(context)
             suppressRequestedWithHeader(this)
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
@@ -118,7 +118,7 @@ class WebViewDataCollector(private val context: Context) {
             settings.domStorageEnabled = true
             @Suppress("DEPRECATION")
             settings.databaseEnabled = true
-            settings.userAgentString = DESKTOP_UA
+            settings.userAgentString = BrowserUserAgent.forDevice(context)
             // Nothing is ever painted — these pages are only scraped — so decoded bitmaps
             // would be pure renderer memory cost.
             settings.loadsImagesAutomatically = false
@@ -286,12 +286,6 @@ class WebViewDataCollector(private val context: Context) {
     companion object {
         /** Name the injected script calls back through. */
         private const val BRIDGE_NAME = "AndroidBridge"
-
-        /** Desktop Chrome UA — matches login WebView; avoids mobile redirects. */
-        const val DESKTOP_UA =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-                "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                "Chrome/136.0.0.0 Safari/537.36"
 
         /**
          * Login pages currently on screen. They run in the same renderer process as the

@@ -12,6 +12,7 @@
 - **登入畫面 renderer 死亡後自動重建** — 不再留下無法互動的白畫面
 - **修正重複的 App 實例** — MainActivity 改為 `launchMode="singleTask"`。先前未指定 launchMode，App 已執行時再次啟動（安裝後點「開啟」、部分 launcher intent）會疊出第二個 Activity，連帶產生第二個 ViewModel 與第二條背景收集迴圈，頁面數與記憶體直接翻倍
 - **登入畫面離開後釋放 WebView** — 先前每進入一次服務登入畫面，就會留下一個活著的頁面在 renderer 裡直到 App 重啟。實測進入登入畫面時 renderer 從約 700 MB 跳到 1,413 MB
+- **修正 ChatGPT 卡在 Cloudflare「驗證您是人類」** — WebView 原本偽裝成 Windows 上的 Chrome 136，但 `navigator.platform`、`userAgentData` 都顯示是 Android WebView 154，Cloudflare 因指紋矛盾不斷要求驗證，連登入畫面都過不了，背景收集每輪白等 90 秒。現在登入頁與背景頁共用同一個平板版 Chrome UA，版本號取自實際 WebView（仍不帶 `wv`，Google SSO 才不會擋；不帶 `Mobile`，維持桌面版面）。背景頁本身無法通過驗證，Cloudflare 要求驗證時需到登入畫面手動通過一次
 - **修正 OpenRouter 的登入偵測** — 登入頁比對清單只有 `/signin`，比對不到 OpenRouter 實際使用的 `/sign-in`，導致 session 過期時卡片不會提示重新登入，而且每輪白燒 90 秒逾時
 
 實機量測（Redmi 平板、4 GB RAM、3 輪完整收集週期、44 個樣本）：同時存活的頁面數從 5–6 降到 **1**（從未出現 2），renderer 峰值從 1.5–1.68 GB 降到 707–1,022 MB，renderer 死亡從每 6–7 分鐘一次降到量測期間 **0 次**，裝置可用記憶體從 408 MB 回到 1.0–1.4 GB，系統也不再為了騰出記憶體而終止其他 app。

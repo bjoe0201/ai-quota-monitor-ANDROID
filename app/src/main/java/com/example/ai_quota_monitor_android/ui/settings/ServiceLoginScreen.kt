@@ -11,6 +11,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.example.ai_quota_monitor_android.service.BrowserUserAgent
 import com.example.ai_quota_monitor_android.service.WebViewDataCollector
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,11 +53,6 @@ import com.example.ai_quota_monitor_android.data.model.AuthStatus
 import com.example.ai_quota_monitor_android.ui.dashboard.DashboardViewModel
 import com.example.ai_quota_monitor_android.ui.theme.LocalAppColors
 import java.time.Instant
-
-private const val DESKTOP_UA =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-    "AppleWebKit/537.36 (KHTML, like Gecko) " +
-    "Chrome/136.0.0.0 Safari/537.36"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
@@ -201,7 +197,7 @@ fun ServiceLoginScreen(
                                     @Suppress("DEPRECATION")
                                     databaseEnabled = true
                                     cacheMode = WebSettings.LOAD_DEFAULT
-                                    userAgentString = DESKTOP_UA
+                                    userAgentString = BrowserUserAgent.forDevice(ctx)
                                     setSupportZoom(true)
                                     builtInZoomControls = true
                                     displayZoomControls = false
