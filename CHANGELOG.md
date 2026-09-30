@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.3 (2026-09-27)
+## v2.3 (2026-09-30)
 
 ### Fixes — 長時間執行後整個 App 關閉
 
@@ -9,16 +9,22 @@
 - **輪詢改為一輪跑完才計時** — 舊版固定每 5 分鐘無條件重載，上一輪未結束就會疊加頁面
 - **背景頁面不再載入圖片** — 這些頁面只被解析、從不繪製，解碼後的圖片是純浪費
 - **登入狀態誤判防護** — 需連續 2 次偵測到登入頁才判定為登出，避免 token refresh、bot 檢查或慢速 SPA 中間態造成誤判（誤判會停掉該服務的背景收集直到手動重新登入）
+- **每輪結束回收 renderer，記憶體不再累積** — 即使頁面收完即拆，每個頁面仍會在共用的 renderer 裡留下記憶體，每輪約 +190 MB、從不歸還，約 23–29 分鐘就撞上 1.5 GB 被系統終止。現在每輪最後一頁回報後以 `WebViewRenderProcess.terminate()` 結束 renderer，下一輪自動起新的；登入畫面開著時跳過。預設開啟（debug 與 release）
 - **登入畫面 renderer 死亡後自動重建** — 不再留下無法互動的白畫面
 - **修正重複的 App 實例** — MainActivity 改為 `launchMode="singleTask"`。先前未指定 launchMode，App 已執行時再次啟動（安裝後點「開啟」、部分 launcher intent）會疊出第二個 Activity，連帶產生第二個 ViewModel 與第二條背景收集迴圈，頁面數與記憶體直接翻倍
 - **登入畫面離開後釋放 WebView** — 先前每進入一次服務登入畫面，就會留下一個活著的頁面在 renderer 裡直到 App 重啟。實測進入登入畫面時 renderer 從約 700 MB 跳到 1,413 MB
 - **修正 ChatGPT 卡在 Cloudflare「驗證您是人類」** — WebView 原本偽裝成 Windows 上的 Chrome 136，但 `navigator.platform`、`userAgentData` 都顯示是 Android WebView 154，Cloudflare 因指紋矛盾不斷要求驗證，連登入畫面都過不了，背景收集每輪白等 90 秒。現在登入頁與背景頁共用同一個平板版 Chrome UA，版本號取自實際 WebView（仍不帶 `wv`，Google SSO 才不會擋；不帶 `Mobile`，維持桌面版面）。背景頁本身無法通過驗證，Cloudflare 要求驗證時需到登入畫面手動通過一次
 - **偵測 Cloudflare 驗證頁並提示使用者** — 背景頁落在驗證頁時，最多再等 15 秒就換下一個服務，不再白等 90 秒；卡片上方顯示「需要通過 Cloudflare 驗證」，點一下直接開啟該服務的登入畫面，返回時回到儀表板。收到資料後提示自動消失
+- **注入腳本每個頁面只安裝一次** — 收集器在 `onPageStarted` 與 `onPageFinished` 各注入一次，舊腳本沒有防護，每次都再包一層 fetch／XHR，同一個回應會被解析多次。現在重複注入不會重複包裝（但網站自己替換 `fetch` 後仍會補包）；只解析各服務 API 所在 host 的回應；XHR 監聽器不再隨每次 `send()` 累積
+- **修正 OpenAI 每輪逾時** — host 白名單原本只接受 `platform.openai.com`，但帳務資料來自 `api.openai.com`，導致 OpenAI 每輪白等 90 秒而沒有資料
+- **修正 Android 15 背景 6 小時後整個 App 被終止** — `dataSync` 前景服務的背景時數用完時，系統要求服務自行停止；舊版沒有處理而被以 `ForegroundServiceDidNotStopInTimeException` 終止。現在服務會及時停止，App 回到前景時重新啟動
 - **修正 OpenRouter 的登入偵測** — 登入頁比對清單只有 `/signin`，比對不到 OpenRouter 實際使用的 `/sign-in`，導致 session 過期時卡片不會提示重新登入，而且每輪白燒 90 秒逾時
 
 實機量測（Redmi 平板、4 GB RAM、3 輪完整收集週期、44 個樣本）：同時存活的頁面數從 5–6 降到 **1**（從未出現 2），renderer 峰值從 1.5–1.68 GB 降到 707–1,022 MB，renderer 死亡從每 6–7 分鐘一次降到量測期間 **0 次**，裝置可用記憶體從 408 MB 回到 1.0–1.4 GB，系統也不再為了騰出記憶體而終止其他 app。
 
-> 已知限制：renderer 記憶體仍會每輪累積約 **190 MB** 且五輪內未收斂，約 23 分鐘撞上 1.5 GB 後被系統終止（原本是每 6–7 分鐘）。App 能存活該次死亡、資料照常收集，使用者端表現正常，但累積本身尚未解決 — 目前是**延後**而非消除 OOM。後續追查方向與完整證據見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)，進行中的實驗與交接見 [`DEVELOP.md`](DEVELOP.md)。
+過夜長跑（2026-09-30 01:24 起約 19 小時、每輪回收 renderer）：App 行程全程未重啟、crash buffer 為空；renderer 共換 234 代，**全部**是計畫性回收，系統因記憶體不足終止的次數為 **0**；回收當下 renderer 約 610–980 MB，不再逐輪升高。
+
+> 已知限制：背景收集的頁面無法自行通過 Cloudflare 的「驗證您是人類」。服務要求驗證時，卡片會顯示提示，需點提示到登入畫面手動通過一次；通過後的通行 cookie 可長期使用。
 
 ### Features
 
@@ -33,6 +39,8 @@
 ### Testing
 
 - 新增 15 個 JVM 單元測試：`RendererRecoveryPolicyTest`（錯開排程、退避、退避歸零）、`SessionExpiryGuardTest`（登出證據累積）、`CollectionPlanTest`（收集順序、停用／未登入／無 URL 的排除、GitHub 第二頁面）
+- 新增 `LoginPageDetectionTest`、`PlannedRecycleTrackerTest`（計畫性回收不被當成 crash）、`BrowserUserAgentTest`（UA 與 WebView 指紋一致、不帶 `wv`／`Mobile`）、`CloudflareChallengeTest`（驗證提示的標記與清除）；JVM 測試共 38 個
+- 新增 `app/src/test/js/injection-test.mjs` — 注入腳本的 7 個測試，不需裝置
 
 
 ## v2.2 (2026-09-09)

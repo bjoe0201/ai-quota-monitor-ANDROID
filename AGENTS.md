@@ -22,6 +22,20 @@ Android port of [ai-quota-monitor](https://github.com/bjoe0201/ai-quota-monitor)
 
 Full migration plan: `PLANS/01-migration-plan.md`
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels without aliases. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
+
 ## Fixed APK Release Process (Use This Every Time)
 
 Public GitHub releases must use the **signed release APK** produced by `assembleRelease`.
@@ -178,6 +192,9 @@ app/src/main/java/com/example/ai_quota_monitor_android/
 │   ├── CollectionPlan.kt       # collectionSteps(config): ordered pages for one cycle
 │   ├── RendererRecoveryPolicy.kt # Backoff after a renderer process death
 │   ├── SessionExpiryGuard.kt   # Repeated evidence before declaring a logout
+│   ├── PlannedRecycleTracker.kt # Tells a planned renderer recycle apart from a crash
+│   ├── BrowserUserAgent.kt     # The one UA every WebView presents (login + background)
+│   ├── CloudflareChallenge.kt  # Detects Cloudflare's challenge page; flags the card
 │   └── MonitorForegroundService.kt
 ├── ui/
 │   ├── theme/          # Dark theme (Linear/Raycast style from original COLORS dict)
@@ -192,12 +209,14 @@ app/src/main/java/com/example/ai_quota_monitor_android/
 
 Two data paths feed into the same `DataStoreRepository`:
 
-1. **WebView path (primary):** App loads AI service pages in a background WebView, injects JS to intercept API responses via `@JavascriptInterface`, data flows directly into repository. Pages are collected **one at a time** — `DashboardViewModel.startCollectionLoop()` walks `collectionSteps(config)` and destroys each page as soon as it has reported, because every WebView shares one renderer process and six live SPAs exhausted it (see `docs/01-webview-renderer-oom-crash.md`).
+1. **WebView path (primary):** App loads AI service pages in a background WebView, injects JS to intercept API responses via `@JavascriptInterface`, data flows directly into repository. Pages are collected **one at a time** — `DashboardViewModel.startCollectionLoop()` walks `collectionSteps(config)` and destroys each page as soon as it has reported, because every WebView shares one renderer process and six live SPAs exhausted it (see `docs/01-webview-renderer-oom-crash.md`). After the last page of each cycle the renderer itself is terminated (`WebViewDataCollector.recycleRenderer()`), since destroyed pages still leave memory behind in it; `PlannedRecycleTracker` keeps that planned death from being handled as a crash (PLANS/03 T6).
 2. **HTTP Server path (secondary):** NanoHTTPD on port 7890 receives POST `/update` from PC browser running Tampermonkey script (same protocol as original Python app).
 
 ### Authentication
 
 All AI service pages require user login. Users authenticate once via full-screen WebView in the app; cookies are persisted by `CookieManager` to disk. Background fetches reuse saved cookies. If a session expires (detected by redirect to login URL on **two consecutive** loads — see `SessionExpiryGuard`), the card shows a warning and prompts re-login.
+
+**User-Agent and Cloudflare:** every WebView (login and background) uses `BrowserUserAgent.forDevice()` — tablet Chrome on Android with the WebView's real Chromium major version. Do not go back to a desktop/Windows UA: it contradicts `navigator.platform` and `userAgentData`, and Cloudflare then loops on "verify you are human" (chatgpt.com, 2026-09-30). The UA must not contain `wv` (Google SSO blocks embedded WebViews) or `Mobile` (services switch to mobile layouts), and login and background pages must share it because Cloudflare's clearance cookie is bound to the UA. Background pages can never pass a challenge themselves; `CloudflareChallenge` detects the challenge page, gives up the step after 15 s, and the card shows a tappable banner that opens that service's login screen.
 
 ### 6 Monitored Services
 

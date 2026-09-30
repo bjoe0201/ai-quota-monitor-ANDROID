@@ -192,6 +192,9 @@ app/src/main/java/com/example/ai_quota_monitor_android/
 │   ├── CollectionPlan.kt       # collectionSteps(config): ordered pages for one cycle
 │   ├── RendererRecoveryPolicy.kt # Backoff after a renderer process death
 │   ├── SessionExpiryGuard.kt   # Repeated evidence before declaring a logout
+│   ├── PlannedRecycleTracker.kt # Tells a planned renderer recycle apart from a crash
+│   ├── BrowserUserAgent.kt     # The one UA every WebView presents (login + background)
+│   ├── CloudflareChallenge.kt  # Detects Cloudflare's challenge page; flags the card
 │   └── MonitorForegroundService.kt
 ├── ui/
 │   ├── theme/          # Dark theme (Linear/Raycast style from original COLORS dict)
@@ -212,6 +215,8 @@ Two data paths feed into the same `DataStoreRepository`:
 ### Authentication
 
 All AI service pages require user login. Users authenticate once via full-screen WebView in the app; cookies are persisted by `CookieManager` to disk. Background fetches reuse saved cookies. If a session expires (detected by redirect to login URL on **two consecutive** loads — see `SessionExpiryGuard`), the card shows a warning and prompts re-login.
+
+**User-Agent and Cloudflare:** every WebView (login and background) uses `BrowserUserAgent.forDevice()` — tablet Chrome on Android with the WebView's real Chromium major version. Do not go back to a desktop/Windows UA: it contradicts `navigator.platform` and `userAgentData`, and Cloudflare then loops on "verify you are human" (chatgpt.com, 2026-09-30). The UA must not contain `wv` (Google SSO blocks embedded WebViews) or `Mobile` (services switch to mobile layouts), and login and background pages must share it because Cloudflare's clearance cookie is bound to the UA. Background pages can never pass a challenge themselves; `CloudflareChallenge` detects the challenge page, gives up the step after 15 s, and the card shows a tappable banner that opens that service's login screen.
 
 ### 6 Monitored Services
 

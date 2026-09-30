@@ -61,7 +61,8 @@
 | 🍪 **Cookie 持久化** | 登入一次即可，重啟 App 免重新登入 |
 | 🔔 **登入偵測** | 偵測 session 過期或 Google SSO 限制，即時提示重新登入；需連續兩次判定才標記登出，避免暫時性導向造成誤判 |
 | ↕️ **依 Card 排序收集** | 背景監控依設定中的 Card 順序**逐一**收集；停用或未登入的 Card 不建立背景 WebView |
-| 🧱 **記憶體安全的背景收集** | 同時只保留一個服務頁面，收到資料後立即釋放，避免多個頁面同時常駐把 WebView renderer 撐爆 |
+| 🧱 **記憶體安全的背景收集** | 同時只保留一個服務頁面，收到資料後立即釋放；每輪結束再回收 WebView renderer，可長時間常駐不累積記憶體 |
+| 🛡️ **Cloudflare 驗證提示** | 服務要求「驗證您是人類」時，Card 顯示提示，點一下即開啟該服務的登入畫面完成驗證 |
 
 ---
 
@@ -96,8 +97,11 @@
 3. App 會在背景開啟 `chatgpt.com/#settings/Usage`，擷取每週剩餘額度與重設時間；Plus 的絕對日期與 Pro 的相對倒數格式皆支援。
 4. 返回儀表板即可查看 ChatGPT Card；若「使用量限制重設」區塊提供可用重置，Card 會依項目數量逐筆顯示帶框的到期資訊。
 5. 若方案提供點數資訊，Card 也會一併顯示。
+6. 若 ChatGPT Card 上方出現「需要通過 Cloudflare 驗證」，點一下開啟登入畫面，完成「驗證您是人類」並進到 ChatGPT 後按右上角勾勾。下一輪收集就會恢復，提示也會自動消失。
 
 > ChatGPT Usage 頁面及欄位會依帳號方案而異；沒有 Usage 權限或目前沒有可用「使用量限制重設」的帳號，不會顯示相應資料列。
+>
+> **Cloudflare 驗證**：chatgpt.com 位於 Cloudflare 之後。背景收集的頁面無法自行通過「驗證您是人類」，所以 Cloudflare 要求驗證時，需要在登入畫面手動通過一次；通過後的通行 cookie 可長期使用，平常不需要再處理。
 
 ### 3. 查看儀表板
 
@@ -125,7 +129,7 @@
 └─────────────────────┘
 ```
 
-App 內所有 WebView 共用同一個 renderer 進程，讓 6 個服務頁面同時常駐會把它撐到 1.5 GB 並被系統終止，連帶終止整個 App。因此背景收集改為序列化：`collectionSteps(config)` 產生本輪要走訪的頁面，`DashboardViewModel` 逐一載入、收到資料後立即釋放。詳見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
+App 內所有 WebView 共用同一個 renderer 進程，讓 6 個服務頁面同時常駐會把它撐到 1.5 GB 並被系統終止，連帶終止整個 App。因此背景收集改為序列化：`collectionSteps(config)` 產生本輪要走訪的頁面，`DashboardViewModel` 逐一載入、收到資料後立即釋放。頁面拆掉後 renderer 仍會留下記憶體，所以每輪最後一頁回報後再以 `WebViewRenderProcess.terminate()` 結束 renderer，下一輪自動起新的。詳見 [`docs/01-webview-renderer-oom-crash.md`](docs/01-webview-renderer-oom-crash.md)。
 
 ---
 
