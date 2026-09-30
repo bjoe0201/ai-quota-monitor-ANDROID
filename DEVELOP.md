@@ -5,7 +5,7 @@
 
 ## 目前狀態
 
-- 版本 **v2.3 / versionCode 14**，**尚未發佈 GitHub Release**
+- 版本 **v2.3 / versionCode 14**，**已發佈 GitHub Release**（2026-10-01，tag 指向 `c3d5949`，唯一 asset 為簽章過的 `ai-quota-monitor-v2.3-release.apk`，SHA256 `d78783a1…eacda`）；舊的 v2.2 Release 已刪除（tag 保留）。下一版要先把 `versionCode` 加 1
 - 平板上安裝的是 **debug build**（與先前同一把 debug key，所以能覆蓋安裝而不掉登入），2026-09-30 23:36 安裝 `08505ff`，已含本檔提到的所有修復
 - 所有變更已 commit 並 push 到 `main`（工作目錄裡 `gradle/libs.versions.toml`、`gradle/wrapper/gradle-wrapper.properties` 的修改不是這幾次工作的一部分，刻意未 commit）
 
@@ -13,7 +13,7 @@
 
 1. **用新版（`08505ff`）再跑一次過夜長跑**，同時驗證 renderer 回收和 ChatGPT 的 Cloudflare 狀態：隔天讀 events buffer（`am_proc_start`／`am_proc_died`／`am_kill`）、crash buffer、App PID 是否不變、`AiQuotaMemExp` 的 `step` 行裡有沒有 `cloudflare-challenge`
 2. **Claude API 的 Google 帳號登入在新 UA 下還沒實測**。UA 沒有帶 `wv`、`X-Requested-With` 也照樣抑制，理論上不影響，但要實際走一次登入流程才算數
-3. 若都正常，就可以準備發 v2.3 Release（流程見 `CLAUDE.md`）
+3. 若有問題要修，修完發 v2.4（`versionCode` 15），流程見 `CLAUDE.md`
 
 ## 已修復並驗證
 
@@ -135,7 +135,7 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 6. ~~Claude API 卡片顯示不出數值~~ — 2026-09-30 截圖確認餘額、方案、本月用量、下次計費都正常顯示，可結案
 7. **Claude.ai 每週重設時間多算將近一天** — `ai-monitor-android.js` 第 87–89 行（`weekly_reset`）與第 108–110 行（`limits` 裡的重設時間）把天數和小時都用 `Math.ceil`：2 天 23.8 小時會顯示成「3 days 24 hrs」。天數應該用 `Math.floor`，小時進位到 24 時要進位成天。改完補 `injection-test.mjs` 測試，PC 端的 `transformClaudeUsage` 也要看是否同樣寫法
 8. **Cloudflare 驗證提示還沒在「自然發生」時截過圖**；這次是使用者看到提示直接點了。下次遇到時截一張，確認版面
-9. 以上穩定後，才考慮發 v2.3 GitHub Release（流程見 `CLAUDE.md`）
+9. ~~發 v2.3 GitHub Release~~（2026-10-01 完成）
 
 ## 測試方法
 
