@@ -67,6 +67,15 @@
         return d;
     }
 
+    // Round the remaining time up to whole hours once, then split it into days and hours.
+    // Rounding days and hours up separately overcounted by up to a day ("3 days 24 hrs").
+    function formatDaysHours(ms) {
+        var totalHrs = Math.ceil(ms / 3600000);
+        var days = Math.floor(totalHrs / 24);
+        var hrs = totalHrs % 24;
+        return days > 0 ? days + ' days ' + hrs + ' hrs' : hrs + ' hrs';
+    }
+
     function transformClaudeUsage(url, json) {
         var d = {};
         if (json.five_hour && typeof json.five_hour === 'object') {
@@ -83,11 +92,7 @@
             if (json.seven_day.utilization !== undefined) d.weekly_percent = Math.round(json.seven_day.utilization);
             if (json.seven_day.resets_at) {
                 var ms2 = new Date(json.seven_day.resets_at) - Date.now();
-                if (ms2 > 0) {
-                    var days = Math.ceil(ms2 / 86400000);
-                    var hrs = Math.ceil((ms2 % 86400000) / 3600000);
-                    d.weekly_reset = days > 0 ? days + ' days ' + hrs + ' hrs' : hrs + ' hrs';
-                }
+                if (ms2 > 0) d.weekly_reset = formatDaysHours(ms2);
             }
         }
         // New `limits` array (2026-07): session / weekly_all / weekly_scoped (per-model, e.g. Fable).
@@ -105,9 +110,7 @@
                             var lmins = Math.ceil(lms / 60000);
                             lreset = lmins >= 60 ? Math.floor(lmins / 60) + ' hrs ' + (lmins % 60) + ' mins' : lmins + ' mins';
                         } else {
-                            var ldays = Math.ceil(lms / 86400000);
-                            var lhrs = Math.ceil((lms % 86400000) / 3600000);
-                            lreset = ldays > 0 ? ldays + ' days ' + lhrs + ' hrs' : lhrs + ' hrs';
+                            lreset = formatDaysHours(lms);
                         }
                     }
                 }

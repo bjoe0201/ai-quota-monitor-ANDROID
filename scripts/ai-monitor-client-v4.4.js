@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         AI Quota Monitor Client v4.4
 // @namespace    https://github.com/ai-quota-monitor
-// @version      4.4.3
+// @version      4.4.4
 // @description  v4.1 + OpenRouter 支援（API 攔截版，零 DOM 依賴）
 // @author       AI Quota Monitor
-// @updated      2026-06-05 — Claude.ai 新路由 /new#settings/usage 相容（v4.4.3）
+// @updated      2026-10-01 — Claude.ai 重設倒數不再多算一天（v4.4.4）
 // @match        https://platform.openai.com/settings/organization/billing/overview*
 // @match        https://claude.ai/settings/usage*
 // @match        https://claude.ai/new*
@@ -182,6 +182,15 @@
     }
 
     // ── Claude.ai Usage ──────────────────────────
+    // Round the remaining time up to whole hours once, then split it into days and hours.
+    // Rounding days and hours up separately overcounted by up to a day ("3 days 24 hrs").
+    function formatDaysHours(ms) {
+        const totalHrs = Math.ceil(ms / 3600000);
+        const days = Math.floor(totalHrs / 24);
+        const hrs = totalHrs % 24;
+        return days > 0 ? `${days} days ${hrs} hrs` : `${hrs} hrs`;
+    }
+
     function transformClaudeUsage(url, json) {
         const d = {};
 
@@ -204,11 +213,7 @@
             if (json.seven_day.utilization !== undefined) d.weekly_percent = Math.round(json.seven_day.utilization);
             if (json.seven_day.resets_at) {
                 const ms = new Date(json.seven_day.resets_at) - Date.now();
-                if (ms > 0) {
-                    const days = Math.ceil(ms / 86400000);
-                    const hrs = Math.ceil((ms % 86400000) / 3600000);
-                    d.weekly_reset = days > 0 ? `${days} days ${hrs} hrs` : `${hrs} hrs`;
-                }
+                if (ms > 0) d.weekly_reset = formatDaysHours(ms);
             }
         }
 
@@ -227,9 +232,7 @@
                             const lmins = Math.ceil(lms / 60000);
                             lreset = lmins >= 60 ? `${Math.floor(lmins / 60)} hrs ${lmins % 60} mins` : `${lmins} mins`;
                         } else {
-                            const ldays = Math.ceil(lms / 86400000);
-                            const lhrs = Math.ceil((lms % 86400000) / 3600000);
-                            lreset = ldays > 0 ? `${ldays} days ${lhrs} hrs` : `${lhrs} hrs`;
+                            lreset = formatDaysHours(lms);
                         }
                     }
                 }
@@ -307,10 +310,7 @@
             if (json.weekly.reset_in && !d.weekly_reset) d.weekly_reset = json.weekly.reset_in;
             if (json.weekly.resets_at && !d.weekly_reset) {
                 const ms = new Date(json.weekly.resets_at) - Date.now();
-                if (ms > 0) {
-                    const days = Math.ceil(ms / 86400000);
-                    d.weekly_reset = `${days} days`;
-                }
+                if (ms > 0) d.weekly_reset = formatDaysHours(ms);
             }
         }
 
@@ -1284,7 +1284,7 @@
     // ─────────────────────────────────────────────
 
     // Phase 1: 在 document-start 立刻安裝 hook（此時 DOM 未就緒）
-    dbg('=== AI Quota Monitor v4.4.3 啟動 ===');
+    dbg('=== AI Quota Monitor v4.4.4 啟動 ===');
     dbg('頁面:', PAGE.label, '(' + PAGE.key + ')');
     dbg('規則數:', activeRules.length);
 

@@ -10,19 +10,19 @@ function check(name, actual, expected) {
     results.push({ name, actual, expected, ok });
 }
 
-function newEnv(pageUrl = 'https://claude.ai/settings/usage') {
+function newEnv(pageUrl = 'https://claude.ai/settings/usage', body = { five_hour: { utilization: 1 } }) {
     const counts = { clones: 0, transforms: 0 };
+    const posts = [];
     const g = globalThis;
     g.window = g;
     const page = new URL(pageUrl);
     g.location = { hostname: page.hostname, pathname: page.pathname, hash: page.hash, href: page.href };
     g.document = { querySelectorAll: () => [], body: null, documentElement: {}, addEventListener() {} };
     g.MutationObserver = class { observe() {} disconnect() {} };
-    g.AndroidBridge = { postData() {} };
+    g.AndroidBridge = { postData(source, json) { posts.push({ source, data: JSON.parse(json) }); } };
     g.__aiMonitorState = undefined;
     delete g.__aiMonitorState;
 
-    const body = { five_hour: { utilization: 1 } };
     g.fetch = async (url) => ({
         ok: true,
         url: String(url),
@@ -42,7 +42,7 @@ function newEnv(pageUrl = 'https://claude.ai/settings/usage') {
         }
     }
     g.XMLHttpRequest = XHR;
-    return { counts, XHR };
+    return { counts, XHR, posts };
 }
 
 function inject(times) {
@@ -101,6 +101,30 @@ const wrapped = globalThis.fetch;
 globalThis.fetch = async (url) => ({ ok: true, url: String(url), headers: { get: () => 'application/json' }, clone() { env.counts.clones++; return { json: async () => ({}) }; } });
 inject(1);
 check('原站替換 fetch 後仍會重新包裝', globalThis.fetch === wrapped, false);
+
+// Claude.ai reset countdowns: the remaining time is rounded up to whole hours once, then split
+// into days and hours — never rounding days and hours up separately ("3 days 24 hrs").
+const HOUR = 3600000;
+const inFuture = (hours, minutes = 0) => new Date(Date.now() + hours * HOUR + minutes * 60000).toISOString();
+env = newEnv('https://claude.ai/new#settings/usage', {
+    seven_day: { utilization: 38, resets_at: inFuture(2 * 24 + 23, 48) },
+    limits: [
+        { kind: 'weekly_scoped', percent: 5, resets_at: inFuture(24 + 5, 10), scope: { model: { display_name: 'Fable' } } },
+    ],
+});
+inject(1);
+await globalThis.fetch('https://claude.ai/api/organizations/x/usage');
+await new Promise((r) => setTimeout(r, 2100));
+const claude = env.posts.filter((p) => p.source === 'claude_usage' && p.data.weekly_reset).pop()?.data ?? {};
+check('每週重設：2 天 23 小時 48 分 → 3 days 0 hrs', claude.weekly_reset, '3 days 0 hrs');
+check('單一模型重設：1 天 5 小時 10 分 → 1 days 6 hrs', claude.fable_reset, '1 days 6 hrs');
+
+env = newEnv('https://claude.ai/new#settings/usage', { seven_day: { utilization: 1, resets_at: inFuture(5, 30) } });
+inject(1);
+await globalThis.fetch('https://claude.ai/api/organizations/x/usage');
+await new Promise((r) => setTimeout(r, 2100));
+const short = env.posts.filter((p) => p.source === 'claude_usage' && p.data.weekly_reset).pop()?.data ?? {};
+check('每週重設：不到一天 5 小時 30 分 → 6 hrs', short.weekly_reset, '6 hrs');
 
 let failed = 0;
 for (const r of results) {

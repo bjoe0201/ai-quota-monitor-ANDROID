@@ -133,7 +133,7 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 4. **`WebViewCompat.addDocumentStartJavaScript`** — 比 `onPageStarted` 更有保證（官方承諾在頁面自身腳本前執行），但會改變注入語義，需保留「原站替換 fetch 後補注入」的能力，單獨處理並單獨量測
 5. **若斜率不降 → A′ 概念驗證**：不啟動 SPA，載入同源輕量頁（如 `robots.txt`）再用 `fetch()` 取 JSON API、`DOMParser` 解析 HTML。先用 claude.ai 單一服務驗證可行性，需確認：API 是否只靠 Cookie 即可呼叫、Cloudflare 是否放行、純 DOM 資料是否存在於原始 HTML、token 過期的回復流程
 6. ~~Claude API 卡片顯示不出數值~~ — 2026-09-30 截圖確認餘額、方案、本月用量、下次計費都正常顯示，可結案
-7. **Claude.ai 每週重設時間多算將近一天** — `ai-monitor-android.js` 第 87–89 行（`weekly_reset`）與第 108–110 行（`limits` 裡的重設時間）把天數和小時都用 `Math.ceil`：2 天 23.8 小時會顯示成「3 days 24 hrs」。天數應該用 `Math.floor`，小時進位到 24 時要進位成天。改完補 `injection-test.mjs` 測試，PC 端的 `transformClaudeUsage` 也要看是否同樣寫法
+7. ~~**Claude.ai 每週重設時間多算將近一天**~~（2026-10-01 已修正，兩個腳本共用 `formatDaysHours`；平板實測顯示「2 days 20 hrs」）— `ai-monitor-android.js` 第 87–89 行（`weekly_reset`）與第 108–110 行（`limits` 裡的重設時間）把天數和小時都用 `Math.ceil`：2 天 23.8 小時會顯示成「3 days 24 hrs」。天數應該用 `Math.floor`，小時進位到 24 時要進位成天。改完補 `injection-test.mjs` 測試，PC 端的 `transformClaudeUsage` 也要看是否同樣寫法
 8. **Cloudflare 驗證提示還沒在「自然發生」時截過圖**；這次是使用者看到提示直接點了。下次遇到時截一張，確認版面
 9. ~~發 v2.3 GitHub Release~~（2026-10-01 完成）
 
@@ -143,7 +143,7 @@ A 把死亡間隔從 6–7 分鐘拉長到約 23 分鐘，**延後但未消除**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest          # 38 個 JVM 測試
-node app/src/test/js/injection-test.mjs  # 7 個注入腳本測試（不需裝置）
+node app/src/test/js/injection-test.mjs  # 10 個注入腳本測試（不需裝置）
 ```
 
 JS 測試可指定檔案來比對修復前後：`node app/src/test/js/injection-test.mjs /path/to/old.js`

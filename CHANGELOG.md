@@ -1,5 +1,15 @@
 # Changelog
 
+## 未發佈
+
+### Fixes
+
+- **Claude.ai 重設倒數不再多算一天** — 天數與小時原本各自無條件進位，剩 2 天 23.8 小時會顯示「3 days 24 hrs」，不到一天的 5.5 小時也會顯示「1 days 6 hrs」。現在先把剩餘時間進位到整點，再換算成天與小時（「3 days 0 hrs」、「6 hrs」）。每週限額與單一模型（例如 Fable）的週限額都適用；PC 端 Tampermonkey 腳本同步修正並升到 v4.4.4
+
+### Testing
+
+- `injection-test.mjs` 新增 3 個 Claude.ai 重設倒數的測試，共 10 個
+
 ## v2.3 (2026-09-30)
 
 ### Fixes — 長時間執行後整個 App 關閉
